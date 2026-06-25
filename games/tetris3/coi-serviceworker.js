@@ -20,7 +20,7 @@ if (typeof window === 'undefined') {
 
         // --- CORRECTIF 1 : BYPASS TOTAL POUR PADDLE ET CLOUDFLARE BEACONS ---
         // On ne touche absolument pas à ces requêtes pour éviter les erreurs CORS et 204
-        if (r.url.includes("cdn-cgi/rum")) {
+        if (r.url.includes("cdn-cgi/rum") || r.url.includes("supabase.co")) {
             return; 
         }
 
@@ -59,7 +59,9 @@ if (typeof window === 'undefined') {
                         headers: newHeaders,
                     });
                 })
-                .catch((e) => console.error(e))
+                .catch((e) => {
+                    console.error("SW Fetch Error:", e);
+                    return fetch(event.request); 
         );
     });
 
