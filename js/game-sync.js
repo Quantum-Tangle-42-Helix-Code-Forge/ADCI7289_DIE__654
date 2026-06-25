@@ -5,12 +5,12 @@ export const GameSync = {
     // Charge depuis Supabase, sinon depuis LocalStorage
      async load(gameSlug) {
 		try {
-			const { data: { user }, error: authError } = await supabase.auth.getUser();
+			const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
 			if (authError) throw authError;
 
 			if (!user) return null;
 
-			const { data, error } = await supabase
+			const { data, error } = await supabaseClient
 				.from('user_game_data')
 				.select('data')
 				.eq('user_id', user.id)
