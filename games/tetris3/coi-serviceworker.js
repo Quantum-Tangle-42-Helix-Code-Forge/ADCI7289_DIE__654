@@ -36,9 +36,12 @@ if (typeof window === 'undefined') {
                     if (response.status === 0) return response;
 
                     const newHeaders = new Headers(response.headers);
+                    // On définit les règles de sécurité de base
                     newHeaders.set("Cross-Origin-Embedder-Policy", coepCredentialless ? "credentialless" : "require-corp");
-                    if (!coepCredentialless) newHeaders.set("Cross-Origin-Resource-Policy", "cross-origin");
                     newHeaders.set("Cross-Origin-Opener-Policy", "same-origin");
+                    
+                    // FORCE la permission Cross-Origin pour débloquer le CSS de Paddle
+                    newHeaders.set("Cross-Origin-Resource-Policy", "cross-origin");
 
                     // --- CORRECTIF 2 : GESTION DES RÉPONSES SANS CORPS (204, 304, etc.) ---
                     // Obligatoire pour éviter "Response with null body status cannot have body"
