@@ -293,7 +293,7 @@ const engine = new Engine(GODOT_CONFIG);
 				if (!user) return "[]";
 				const { data } = await supabaseClient
 					.from('wallet_transactions')
-					.select('id, amount')
+					.select('id, amount, metadata')
 					.eq('user_id', user.id)
 					.eq('metadata->processed', false);
 				return JSON.stringify(data || []);
@@ -317,6 +317,7 @@ const engine = new Engine(GODOT_CONFIG);
 		</script>
 	</body>
 </html>
+
 
 
 

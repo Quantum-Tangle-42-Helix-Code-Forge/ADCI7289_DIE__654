@@ -29,14 +29,17 @@ Deno.serve(async (req) => {
       // 3. CRÉDITER LE COMPTE (La seule source de vérité)
       // On ajoute une colonne 'processed' (boolean) pour savoir si le jeu a déjà compté ces pièces
       await supabaseAdmin.from('wallet_transactions').insert({
-        user_id: user_id,
-        amount: intent.store_products.reward_amount,
-        type: 'credit',
-        currency: currencyCode,
-        description: "Achat : " + intent.store_products.reward_type,
-        reference_id: paddleTransactionId,
-        metadata: { processed: false } // <--- IMPORTANT : Le jeu devra passer ça à true
-      });
+	  user_id: user_id,
+	  amount: intent.store_products.reward_amount,
+	  type: 'credit',
+	  currency: currencyCode,
+	  description: "Achat : " + intent.store_products.reward_type,
+	  reference_id: body.data.id,
+	  metadata: { 
+		processed: false, 
+		reward_type: intent.store_products.reward_type // TRÈS IMPORTANT
+	  }
+	});
     }
     return new Response("OK", { status: 200 });
   } catch (e) {
