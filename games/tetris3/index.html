@@ -266,17 +266,12 @@ const engine = new Engine(GODOT_CONFIG);
 			// CHARGEMENT (Appelé par SaveManager._ready)
 			window.requestRemoteData = async function() {
 				try {
+					console.log("📥 Chargement sauvegarde...");
 					const data = await GameSync.load(slug);
-					let result = "";
-					if (data === "NETWORK_ERROR") {
-						result = "NETWORK_ERROR";
-					} else {
-						result = JSON.stringify(data);
-					}
 					
 					// On envoie le résultat à Godot via un callback global
 					if (window.on_data_received) {
-						window.on_data_received(result);
+						window.on_data_received(JSON.stringify(data));
 					}
 				} catch (e) {
 					console.error(e);
@@ -286,13 +281,23 @@ const engine = new Engine(GODOT_CONFIG);
 
 			// SAUVEGARDE LOCALE (Appelé par SaveManager.update_stat)
 			window.saveLocal = function(jsonStr) {
-				GameSync.saveLocally(slug, JSON.parse(jsonStr));
+				try {
+					GameSync.saveLocally(slug, JSON.parse(jsonStr));
+				}
+				catch(e){
+					console.error(e);
+				}
 			};
 
 			// SYNCHRONISATION CLOUD (Appelé par SaveManager.force_cloud_sync)
 			window.syncCloud = async function() {
 				console.log("☁️ Tentative de synchronisation...");
-				await GameSync.sync(slug);
+				try {
+					await GameSync.sync(slug);
+				}
+				catch(e){
+					console.error(e);
+				}
 			};
 
 			// ACHAT
@@ -303,35 +308,47 @@ const engine = new Engine(GODOT_CONFIG);
 			};
 
 			// GESTION DES TRANSACTIONS PADDLE
-			window.getPendingTransactions = async function() {
-				const { data: { user } } = await supabaseClient.auth.getUser();
-				if (!user) return "[]";
-				const { data } = await supabaseClient
-					.from('wallet_transactions')
-					.select('id, amount, metadata')
-					.eq('user_id', user.id)
-					.eq('metadata->processed', false);
-				return JSON.stringify(data || []);
-			};
+			window.requestPendingTransactions = async function () {
+				try {
+					const { data, error } = await supabaseClient.rpc(
+						"claim_pending_rewards"
+					);
+					if (error)
+						throw error;
+					if (window.on_transactions_received) {
+						window.on_transactions_received(
+							JSON.stringify(data || [])
+						);
+					}
+				}
 
-			window.markTransactionsAsProcessed = async function(idsJson) {
-				const ids = JSON.parse(idsJson);
-				for (let id of ids) {
-					await supabaseClient.from('wallet_transactions')
-						.update({ metadata: { processed: true } })
-						.eq('id', id);
+				catch (e) {
+					console.error(e);
+					if (window.on_transactions_received)
+						window.on_transactions_received("[]");
 				}
 			};
 
+			
+			window.addEventListener("focus",()=>{
+				console.log("👀 Retour sur le jeu");
+				window.requestPendingTransactions();
+			});
+
 			// --- AUTOMATISMES ---
-			// Synchroniser toutes les 30 secondes au lieu de 60 pour les tests
-			setInterval(() => { window.syncCloud(); }, 30000);
+			
 
 			// Synchroniser quand on quitte la page
-			window.addEventListener("beforeunload", () => { window.syncCloud(); });
+			document.addEventListener("visibilitychange",()=>{
+				if(document.visibilityState==="hidden"){
+					window.syncCloud();
+				}
+			});
+			
 		</script>
 	</body>
 </html>
+
 
 
 

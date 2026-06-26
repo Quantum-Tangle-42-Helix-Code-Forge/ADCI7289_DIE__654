@@ -1,84 +1,199 @@
-// js/game-sync.js
-import { supabaseClient } from "./config.js?v=1.0.3"; 
+import { supabaseClient } from "./config.js?v=1.0.2";
+
+let syncTimer = null;
+let syncRunning = false;
+let syncQueued = false;
 
 export const GameSync = {
-    /**
-     * Tente de charger les données depuis le Cloud, 
-     * sinon se rabat sur le LocalStorage.
-     */
-    async load(gameSlug) {
-        try {
-            // 1. Récupération de l'utilisateur
-            const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
-            
-            // On récupère toujours le local en backup
-            const localData = JSON.parse(localStorage.getItem(`save_${gameSlug}`));
 
-            if (authError || !user) {
-                console.warn("👤 Mode Invité ou erreur Auth. Utilisation du local.");
-                return localData; // Peut être null si première partie
+    async load(gameSlug) {
+
+        try {
+
+            const {
+                data: { user },
+                error: authError
+            } = await supabaseClient.auth.getUser();
+
+            if (authError)
+                throw authError;
+
+            // récupération locale
+            const localRaw = localStorage.getItem(`save_${gameSlug}`);
+            const localData = localRaw ? JSON.parse(localRaw) : null;
+
+            if (!user) {
+
+                return localData;
+
             }
 
-            // 2. Récupération Cloud
             const { data, error } = await supabaseClient
-                .from('user_game_data')
-                .select('data, updated_at')
-                .eq('user_id', user.id)
-                .eq('game_slug', gameSlug)
+                .from("user_game_data")
+                .select("data,updated_at")
+                .eq("user_id", user.id)
+                .eq("game_slug", gameSlug)
                 .maybeSingle();
 
-            if (error) throw error;
+            if (error)
+                throw error;
 
-            if (data && data.data) {
-                // On a des données Cloud. On met à jour le LocalStorage pour la prochaine fois
-                localStorage.setItem(`save_${gameSlug}`, JSON.stringify(data.data));
-                return data.data;
+            if (!data) {
+
+                return localData;
+
             }
 
-            // Si pas de données Cloud, on renvoie le local
-            return localData;
+            const remoteData = data.data;
 
-        } catch (err) {
-            console.error("❌ GameSync.load Error:", err.message);
-            // En cas d'erreur réseau massive, on renvoie une string spéciale pour prévenir Godot
+            // si aucune sauvegarde locale
+            if (!localData) {
+
+                localStorage.setItem(
+                    `save_${gameSlug}`,
+                    JSON.stringify(remoteData)
+                );
+
+                return remoteData;
+
+            }
+
+            // comparaison des dates internes
+            const localTime = localData.saved_at || 0;
+            const remoteTime = remoteData.saved_at || 0;
+
+            if (localTime > remoteTime) {
+
+                console.log("📱 Sauvegarde locale plus récente.");
+
+                return localData;
+
+            }
+
+            console.log("☁️ Sauvegarde cloud plus récente.");
+
+            localStorage.setItem(
+                `save_${gameSlug}`,
+                JSON.stringify(remoteData)
+            );
+
+            return remoteData;
+
+        }
+        catch (err) {
+
+            console.error(err);
+
             return "NETWORK_ERROR";
+
         }
+
     },
 
-    /**
-     * Sauvegarde rapide dans le navigateur
-     */
     saveLocally(gameSlug, newData) {
-        if (!newData) return;
-        localStorage.setItem(`save_${gameSlug}`, JSON.stringify(newData));
-    },
+		newData.saved_at = Date.now();
+		localStorage.setItem(
+			`save_${gameSlug}`,
+			JSON.stringify(newData)
+		);
+		this.scheduleSync(gameSlug);
+	}
+    
+    scheduleSync(gameSlug) {
+		if (syncTimer) {
+			clearTimeout(syncTimer);
+		}
 
-    /**
-     * Envoie le LocalStorage vers Supabase (Upsert)
-     */
+		syncTimer = setTimeout(async () => {
+			if (syncRunning) {
+				syncQueued = true;
+				return;
+			}
+
+			syncRunning = true;
+			try {
+				await this.sync(gameSlug);
+			}
+
+			finally {
+
+				syncRunning = false;
+				if (syncQueued) {
+					syncQueued = false;
+					this.scheduleSync(gameSlug);
+				}
+			}
+		}, 3000);
+
+	},
+
     async sync(gameSlug) {
+		if (syncRunning) {
+			return;
+		}
+		
+		if (localData.save_version === lastSyncedVersion) {
+			return;
+		}
+
         try {
-            const { data: { user } } = await supabaseClient.auth.getUser();
-            if (!user) return;
 
-            const localData = JSON.parse(localStorage.getItem(`save_${gameSlug}`));
-            if (!localData) return;
+            const {
+                data: { user }
+            } = await supabaseClient.auth.getUser();
 
-            // L'upsert utilise la contrainte UNIQUE(user_id, game_slug) créée en étape 1
+            if (!user) {
+
+                window.on_sync_finished?.();
+
+                return;
+
+            }
+
+            const localRaw = localStorage.getItem(`save_${gameSlug}`);
+
+            if (!localRaw) {
+
+                window.on_sync_finished?.();
+
+                return;
+
+            }
+
+            const localData = JSON.parse(localRaw);
+
             const { error } = await supabaseClient
-                .from('user_game_data')
-                .upsert({ 
-                    user_id: user.id, 
-                    game_slug: gameSlug, 
-                    data: localData,
-                    updated_at: new Date().toISOString()
-                }, { onConflict: 'user_id,game_slug' });
+                .from("user_game_data")
+                .upsert(
+                    {
+                        user_id: user.id,
+                        game_slug: gameSlug,
+                        data: localData
+                    },
+                    {
+                        onConflict: "user_id,game_slug"
+                    }
+                );
 
-            if (error) throw error;
-            console.log(`☁️ Synchro Cloud réussie pour ${gameSlug}`);
+            if (error)
+                throw error;
 
-        } catch (err) {
-            console.error("❌ GameSync.sync Error:", err.message);
+            console.log("☁️ Synchronisation Cloud OK");
+            lastSyncedVersion = localData.save_version;
+
+            if (window.on_sync_finished)
+                window.on_sync_finished("OK");
+
         }
+        catch (err) {
+
+            console.error("Erreur Sync :", err);
+
+            if (window.on_sync_finished)
+                window.on_sync_finished("ERROR");
+
+        }
+
     }
+
 };

@@ -83,10 +83,25 @@ Deno.serve(async (req) => {
     });
 
     const paddleData = await paddleResponse.json();
+   
     if (!paddleResponse.ok) {
       console.error("[PADDLE ERROR]", paddleData);
       throw new Error(paddleData.error?.detail || "Paddle API Error");
     }
+    
+    // Sauvegarder les informations Paddle dans payment_intents
+	const { error: updateError } = await supabaseAdmin
+	  .from("payment_intents")
+	  .update({
+		paddle_transaction_id: paddleData.data.id,
+		checkout_id: paddleData.data.checkout?.id ?? null,
+		checkout_url: paddleData.data.checkout?.url ?? null
+	  })
+	  .eq("id", intent.id);
+
+	if (updateError) {
+	  throw updateError;
+	}
 
     return new Response(
       JSON.stringify({ 
