@@ -266,15 +266,20 @@ const engine = new Engine(GODOT_CONFIG);
 			// CHARGEMENT DIRECT(Appelé par SaveManager._ready)
 			window.requestRemoteData = async function() {
 				try {
-					console.log("📥 Chargement sauvegarde...");
+					console.log("📥 JS: Récupération des données...");
 					const data = await GameSync.load(slug);
 					
-					// On envoie le résultat à Godot via un callback global
 					if (window.on_data_received) {
-						window.on_data_received(JSON.stringify(data));
+						// Si data est null ou NETWORK_ERROR, on envoie la string
+						// Sinon on envoie l'objet directement (Godot préfère ça)
+						if (data === null || data === "NETWORK_ERROR") {
+							window.on_data_received(String(data));
+						} else {
+							window.on_data_received(data); 
+						}
 					}
 				} catch (e) {
-					console.error(e);
+					console.error("Erreur JS requestRemoteData:", e);
 					if (window.on_data_received) window.on_data_received("NETWORK_ERROR");
 				}
 			};
