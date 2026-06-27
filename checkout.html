@@ -135,9 +135,25 @@
                     if (funcError || !data.transaction_id) throw new Error("Erreur Backend");
 
                     Paddle.Checkout.open({
-                        transactionId: data.transaction_id,
-                        settings: { displayMode: "overlay", theme: "dark", locale: "fr" }
-                    });
+						transactionId: data.transaction_id,
+						settings: {
+							displayMode: "overlay",
+							theme: "dark",
+							locale: "fr"
+						},
+						eventCallback: async function(event) {
+							// Si l'utilisateur ferme la fenêtre sans payer
+							if (event.name === "checkout.closed") {
+								console.log("Fenêtre fermée par l'utilisateur");
+								// On peut notifier Supabase que c'est probablement abandonné
+								await supabaseClient
+									.from("payment_intents")
+									.update({ status: "abandoned" })
+									.eq("paddle_transaction_id", data.transaction_id)
+									.eq("status", "pending"); // Ne pas écraser si déjà 'completed' via Webhook
+							}
+						}
+					});
                     
                     statusText.innerText = "Fenêtre de paiement ouverte.";
                 } catch (err) {

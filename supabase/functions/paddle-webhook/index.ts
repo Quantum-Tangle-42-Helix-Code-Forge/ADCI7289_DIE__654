@@ -5,154 +5,116 @@ Deno.serve(async (req) => {
     const rawBody = await req.text();
     const signatureHeader = req.headers.get("Paddle-Signature");
 
-    if (!signatureHeader) {
-      return new Response("Missing Paddle-Signature", { status: 401 });
+    if (!signatureHeader) return new Response("No Signature", { status: 401 });
+
+    // 1. VERIFICATION DE LA SIGNATURE
+    const webhookSecret = Deno.env.get("paddle_webhook_secret");
+    if (!webhookSecret) throw new Error("Secret paddle_webhook_secret manquant");
+
+    const parts = Object.fromEntries(signatureHeader.split(";").map(p => p.split("=")));
+    const timestamp = parts.ts;
+    const receivedHash = parts.h1;
+
+    // Tolérance de 5 minutes (300s)
+    if (Math.abs(Math.floor(Date.now() / 1000) - parseInt(timestamp)) > 300) {
+      return new Response("Expired", { status: 401 });
     }
 
-    /**
-     * Fonction de comparaison en temps constant pour éviter les Timing Attacks
-     */
-    function timingSafeEqual(a: string, b: string): boolean {
-      if (a.length !== b.length) return false;
-      let result = 0;
-      for (let i = 0; i < a.length; i++) {
-        result |= a.charCodeAt(i) ^ b.charCodeAt(i);
-      }
-      return result === 0;
-    }
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey("raw", encoder.encode(webhookSecret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+    const signed = await crypto.subtle.sign("HMAC", key, encoder.encode(`${timestamp}:${rawBody}`));
+    const expectedHash = Array.from(new Uint8Array(signed)).map(b => b.toString(16).padStart(2, "0")).join("");
 
-    /**
-     * Vérification de la signature Paddle avec fenêtre de temps
-     */
-    async function verifySignature(
-      body: string,
-      header: string,
-      secret: string
-    ) {
-      const parts = Object.fromEntries(
-        header.split(";").map(p => p.split("="))
-      );
+    if (expectedHash !== receivedHash) return new Response("Invalid Signature", { status: 401 });
 
-      const timestamp = parts.ts;
-      const receivedHash = parts.h1;
-
-      if (!timestamp || !receivedHash) return false;
-
-      // 1. PROTECTION : Vérifier que le timestamp n'est pas trop vieux (tolérance 5s)
-      const now = Math.floor(Date.now() / 1000);
-      const requestTime = parseInt(timestamp);
-      if (Math.abs(now - requestTime) > 5) {
-        console.error("❌ Webhook trop vieux (Replay Attack possible)");
-        return false;
-      }
-
-      // 2. RE-SIGNATURE
-      const encoder = new TextEncoder();
-      const key = await crypto.subtle.importKey(
-        "raw",
-        encoder.encode(secret),
-        { name: "HMAC", hash: "SHA-256" },
-        false,
-        ["sign"]
-      );
-
-      const payload = `${timestamp}:${body}`;
-      const signed = await crypto.subtle.sign("HMAC", key, encoder.encode(payload));
-      
-      const expectedHash = Array.from(new Uint8Array(signed))
-        .map(b => b.toString(16).padStart(2, "0"))
-        .join("");
-
-      // 3. PROTECTION : Comparaison en temps constant
-      return timingSafeEqual(expectedHash, receivedHash);
-    }
-
-    const webhookSecret = Deno.env.get("PADDLE_WEBHOOK_SECRET")!;
-    const isSignatureValid = await verifySignature(rawBody, signatureHeader, webhookSecret);
-
-    if (!isSignatureValid) {
-      return new Response("Invalid signature", { status: 401 });
-    }
-
+    // 2. PARSE ET INFOS DE BASE
     const body = JSON.parse(rawBody);
+    const eventType = body.event_type;
+    const data = body.data;
+    const intentId = data.custom_data?.payment_intent_id;
+    const userId = data.custom_data?.user_id;
 
-    if (body.event_type === "transaction.completed") {
-      const data = body.data;
-      const customData = data.custom_data;
+    if (!intentId) return new Response("Ignored: No intent_id", { status: 200 });
+
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    // --- BRANCHEMENT SELON L'ÉVÉNEMENT ---
+
+    // CAS 1 : TRANSACTION RÉUSSIE (On donne les récompenses)
+    if (eventType === "transaction.completed") {
       
-      const userId = customData?.user_id;
-      const intentId = customData?.payment_intent_id;
-
-      if (!userId || !intentId) {
-        return new Response("Missing custom_data", { status: 400 });
-      }
-
-      const supabaseAdmin = createClient(
-        Deno.env.get('SUPABASE_URL')!,
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-      );
-
-      // 1. Récupérer l'intention et le produit lié
+      // Récupérer le produit lié
       const { data: intent, error: intentError } = await supabaseAdmin
         .from('payment_intents')
-        .select(`status, store_products(reward_amount, reward_type, reward_key)`)
+        .select(`status, store_products(reward_amount, reward_type)`)
         .eq('id', intentId)
         .single();
       
-      if (intentError || !intent.store_products) {
-        throw new Error("Product or Intent not found");
-      }
+      if (intentError || !intent.store_products) throw new Error("Product not found");
 
-      // 2. IDEMPOTENCE : On ne traite que si c'est 'pending'
+      // Idempotence : On ne traite que si c'est encore en 'pending'
       const { data: updatedIntent } = await supabaseAdmin
         .from("payment_intents")
-        .update({
-          status: "completed",
-          completed_at: new Date().toISOString()
-        })
-        .eq("id", intentId)
-        .eq("status", "pending") // Sécurité cruciale contre le double-clic
-        .select()
-        .maybeSingle();
+        .update({ status: "completed", completed_at: new Date().toISOString() })
+        .eq('id', intentId)
+        .eq('status', 'pending')
+        .select().maybeSingle();
       
-      if (!updatedIntent) {
-        return new Response("Already processed", { status: 200 });
-      }
+      if (!updatedIntent) return new Response("Already Processed", { status: 200 });
 
-      // 3. CALCUL DES RÉCOMPENSES (Quantité comprise)
       const quantity = data.items?.[0]?.quantity || 1;
-      const totalReward = (intent.store_products.reward_amount ?? 0) * quantity;
+      const reward = intent.store_products;
+      const totalAmount = (reward.reward_amount || 0) * quantity;
 
-      // 4. CRÉDITER LE COMPTE (Ledger)
-      const { error: walletError } = await supabaseAdmin.from('wallet_transactions').insert({
+      // Insertion Wallet
+      await supabaseAdmin.from('wallet_transactions').insert({
         user_id: userId,
-        amount: totalReward,
-        type: 'credit',
+        amount: Math.round(totalAmount),
         currency: data.currency_code || "USD",
-        description: `Achat boutique : ${quantity}x ${intent.store_products.reward_type}`,
-        reference_id: data.id, // On utilise l'ID Paddle pour empêcher les doublons SQL
-        metadata: { 
-          processed: false, 
-          reward_type: intent.store_products.reward_type,
-          reward_key: intent.store_products.reward_key
-        }
+        source: "paddle",
+        type: "credit",
+        description: `Achat : ${quantity}x ${reward.reward_type}`,
+        reference_id: data.id,
+        metadata: { processed: false, reward_type: reward.reward_type }
       });
 
-      if (walletError) {
-        // Si l'ID de transaction existe déjà, PostgreSQL renverra l'erreur 23505
-        if (walletError.code === "23505") {
-          return new Response("Already credited", { status: 200 });
-        }
-        throw walletError;
-      }
+      // Insertion Item Purchases
+      await supabaseAdmin.from('item_purchases').insert({
+        user_id: userId,
+        item_id: reward.reward_type,
+        paddle_order_id: data.id,
+        delivered: false
+      });
 
-      return new Response("OK", { status: 200 });
+      console.log(`✅ Transaction ${data.id} complétée pour l'utilisateur ${userId}`);
     }
 
-    return new Response("Ignored event", { status: 200 });
+    // CAS 2 : TRANSACTION ANNULÉE
+    else if (eventType === "transaction.canceled") {
+      console.log(`🚫 Transaction ${data.id} annulée par l'utilisateur.`);
+      await supabaseAdmin
+        .from("payment_intents")
+        .update({ status: "canceled" })
+        .eq('id', intentId)
+        .eq('status', 'pending');
+    }
+
+    // CAS 3 : PAIEMENT ÉCHOUÉ
+    else if (eventType === "transaction.past_due" || eventType === "transaction.payment_failed") {
+      console.log(`❌ Paiement échoué pour la transaction ${data.id}`);
+      await supabaseAdmin
+        .from("payment_intents")
+        .update({ status: "failed" })
+        .eq('id', intentId);
+    }
+
+    return new Response("OK", { status: 200 });
 
   } catch (err) {
-    console.error("💥 Webhook Error:", err.message);
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    console.error("💥 CRASH WEBHOOK :", err.message);
+    return new Response(err.message, { status: 500 });
   }
 })

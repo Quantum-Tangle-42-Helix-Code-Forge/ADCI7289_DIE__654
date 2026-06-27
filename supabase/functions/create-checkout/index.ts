@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
     // Insertion de l'intention de paiement
     const { data: intent, error: intentError } = await supabaseAdmin
       .from("payment_intents")
-      .insert([{ user_id: user.id, store_product_id: product.id, status: "pending" }])
+      .insert([{ user_id: user.id, store_product_id: product.id, paddle_price_id: price_id, status: "pending" }])
       .select()
       .single();
 
@@ -86,6 +86,7 @@ Deno.serve(async (req) => {
    
     if (!paddleResponse.ok) {
       console.error("[PADDLE ERROR]", paddleData);
+      await supabaseAdmin.from("payment_intents").update({ status: "error" }).eq("id", intent.id);
       throw new Error(paddleData.error?.detail || "Paddle API Error");
     }
     
@@ -95,7 +96,8 @@ Deno.serve(async (req) => {
 	  .update({
 		paddle_transaction_id: paddleData.data.id,
 		checkout_id: paddleData.data.checkout?.id ?? null,
-		checkout_url: paddleData.data.checkout?.url ?? null
+		checkout_url: paddleData.data.checkout?.url ?? null,
+		status: "initiated"
 	  })
 	  .eq("id", intent.id);
 

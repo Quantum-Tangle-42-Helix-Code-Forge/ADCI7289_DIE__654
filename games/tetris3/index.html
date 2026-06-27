@@ -306,6 +306,30 @@ const engine = new Engine(GODOT_CONFIG);
 				const checkoutUrl = `../../checkout.html?price_id=${priceId}&game=${slug}`;
 				window.open(checkoutUrl, "_blank");
 			};
+			
+			// Récupère les intentions annulées ou échouées non encore vues par le jeu
+			window.getFailedIntents = async function() {
+				const { data: { user } } = await supabaseClient.auth.getUser();
+				if (!user) return "[]";
+
+				const { data, error } = await supabaseClient
+					.from('payment_intents')
+					.select('id, status, paddle_price_id')
+					.eq('user_id', user.id)
+					.in('status', ['canceled', 'failed', 'abandoned']) // On cherche ces statuts
+					.is('completed_at', null); // On utilise cette colonne ou une autre pour savoir si c'est "nouveau"
+
+				return JSON.stringify(data || []);
+			};
+
+			// Marque une intention comme "traitée" (pour ne plus afficher le message d'erreur)
+			window.markIntentAsNotified = async function(intentId) {
+				// On peut par exemple mettre une date dans completed_at pour dire "le joueur a vu l'erreur"
+				await supabaseClient
+					.from('payment_intents')
+					.update({ completed_at: new Date().toISOString() }) 
+					.eq('id', intentId);
+			};
 
 			// GESTION DES TRANSACTIONS PADDLE
 			window.requestPendingTransactions = async function () {
