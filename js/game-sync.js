@@ -119,8 +119,11 @@ export const GameSync = {
     async sync(gameSlug) {
 		try {
 			// 1. Vérifier si l'utilisateur est connecté
-			const { data: { user } } = await supabaseClient.auth.getUser();
-			if (!user) return; // On ne fait rien s'il n'est pas connecté
+			const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+			if (sessionError || !session) {
+				console.warn("☁️ Pas de session active, synchro cloud ignorée.");
+				return;
+			}
 
 			// 2. Récupérer la donnée locale brute
 			const localRaw = localStorage.getItem(`save_${gameSlug}`);
@@ -138,11 +141,17 @@ export const GameSync = {
 					new_data: dataToSend 
 				},
 				headers: {
-					Authorization: `Bearer ${user.access_token}`
+					Authorization: `Bearer ${session.access_token}`
 				}
 			});
 
-			if (error) throw error;
+			if (error) {
+				// Si l'erreur est une 403 (triche détectée), on prévient Godot
+				if (error.status === 403) {
+					console.error("🚨 Synchro refusée par le serveur (Triche ?)");
+				}
+				throw error;
+			}
 			console.log("☁️ Sauvegarde Cloud réussie.");
 		} catch (err) {
 			console.error("❌ Erreur SECURE-SYNC :", err.message);

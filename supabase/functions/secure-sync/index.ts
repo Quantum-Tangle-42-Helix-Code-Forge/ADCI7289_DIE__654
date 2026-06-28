@@ -23,29 +23,33 @@ Deno.serve(async (req) => {
     // 2. Vérification du Token
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: "No auth header" }), { status: 401, headers: corsHeaders })
-    }
+		console.error("❌ Erreur : Header Authorization absent");
+
+		return new Response(JSON.stringify({ error: "No auth header" }), { status: 401, headers: corsHeaders })
+	}
 
     const token = authHeader.replace('Bearer ', '')
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
     
     if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Invalid token" }), { status: 401, headers: corsHeaders })
+		console.error("❌ Erreur Auth Supabase :", authError?.message);
+		return new Response(JSON.stringify({ error: "Invalid token" }), { status: 401, headers: corsHeaders })
     }
+    console.log("✅ Utilisateur authentifié :", user.id);
 
     // 3. Lecture du corps de la requête
     const { game_slug, new_data } = await req.json()
     if (!game_slug || !new_data) {
-      return new Response(JSON.stringify({ error: "Missing payload" }), { status: 400, headers: corsHeaders })
+		return new Response(JSON.stringify({ error: "Missing payload" }), { status: 400, headers: corsHeaders })
     }
 
     // 4. Récupération de l'ancienne sauvegarde
     const { data: oldRow } = await supabaseAdmin
-      .from('user_game_data')
-      .select('data')
-      .eq('user_id', user.id)
-      .eq('game_slug', game_slug)
-      .maybeSingle()
+		.from('user_game_data')
+		.select('data')
+		.eq('user_id', user.id)
+		.eq('game_slug', game_slug)
+		.maybeSingle()
 
     const oldData = oldRow?.data || null
 
