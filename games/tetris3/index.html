@@ -262,6 +262,7 @@ const engine = new Engine(GODOT_CONFIG);
 			const slug = (gamesIndex !== -1 && pathParts[gamesIndex + 1]) ? pathParts[gamesIndex + 1] : "default";
 
 			// --- FONCTIONS EXPOSÉES À GODOT ---
+			let conflictResolved = false;
 
 			// CHARGEMENT DIRECT(Appelé par SaveManager._ready)
 			window.requestRemoteData = async function() {
@@ -275,19 +276,20 @@ const engine = new Engine(GODOT_CONFIG);
 
 					// 2. CAS DE CONFLIT : Joueur a une partie locale ET est connecté
 					// On vérifie si la partie locale appartient à un "invité" (pas de saved_at ou saved_at différent du cloud)
-					if (user && localData) {
+					if (user && localData && !conflictResolved) {
 						// On récupère les infos cloud pour comparer
 						const { data: remoteRow } = await supabaseClient.from("user_game_data").select("data").eq('user_id', user.id).eq('game_slug', slug).maybeSingle();
 						const remoteData = remoteRow?.data;
 
 						if (remoteData) {
 							// Si les dates de sauvegarde sont différentes de plus de 5 secondes, on demande
-							const diff = Math.abs((localData.saved_at || 0) - (remoteData.saved_at || 0));
+							const localTs = localData.saved_at || 0;
+							const remoteTs = remoteData.saved_at || 0;
 							
-							if (diff > 5000) { // 5 secondes de tolérance
-								console.log("⚠️ Conflit détecté, attente du choix utilisateur...");
+							if (Math.abs(localTs - remoteTs) > 10000) { 
 								const choice = await showConflictModal();
-								
+								conflictResolved = true; // Marquer comme résolu
+                    
 								if (choice === 'cloud') {
 									localStorage.setItem(`save_${slug}`, JSON.stringify(remoteData));
 									if (window.on_data_received) window.on_data_received(JSON.stringify(remoteData));
@@ -304,6 +306,7 @@ const engine = new Engine(GODOT_CONFIG);
 
 					// 3. CAS NORMAL (Déjà connecté ou Hors-ligne pur) : On utilise la fonction load normale
 					const data = await GameSync.load(slug);
+					conflictResolved = true; // On a chargé, plus besoin de bulle
 					if (window.on_data_received) {
 						window.on_data_received(data === "NETWORK_ERROR" ? "NETWORK_ERROR" : JSON.stringify(data));
 					}
