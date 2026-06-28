@@ -1,4 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { gameValidators } from "./validators.ts" // IMPORT DU MODULE
+
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -45,26 +47,48 @@ Deno.serve(async (req) => {
       .eq('game_slug', game_slug)
       .maybeSingle()
 
-    const oldData = oldRow?.data || { bananes: 0, saved_at: 0 }
+    const oldData = oldRow?.data || null
 
     // --- LOGIQUE DE SÉCURITÉ ---
 
-    // A. Anti-Rejeu (Timestamp)
-    const newTs = Number(new_data.saved_at) || 0
-    const oldTs = Number(oldData.saved_at) || 0
-    if (newTs <= oldTs && oldTs !== 0) {
-      console.log(`[Abort] Old timestamp: New(${newTs}) <= Old(${oldTs})`)
-      return new Response(JSON.stringify({ status: "ignored", reason: "old_timestamp" }), { headers: corsHeaders })
+    // A. Anti-Rejeu (Timestamp) - S'applique à TOUS les jeux
+    // On vérifie en premier pour rejeter les requêtes inutiles
+    const newTs = Number(new_data.saved_at) || 0;
+    const oldTs = Number(oldData?.saved_at) || 0; // oldData peut être null au 1er jeu
+
+    if (oldTs !== 0 && newTs <= oldTs) {
+      console.log(`[Abort] Old timestamp: New(${newTs}) <= Old(${oldTs})`);
+      return new Response(JSON.stringify({ status: "ignored", reason: "old_timestamp" }), { 
+        status: 200, // On renvoie 200 car ce n'est pas une "erreur" serveur, juste une requête inutile
+        headers: corsHeaders 
+      });
     }
 
-    // B. Anti-Gros Gains (Cohérence)
-    const newBananes = Number(new_data.bananes) || 0
-    const oldBananes = Number(oldData.bananes) || 0
+    // B. Appel du Validateur Spécifique (s'il existe)
+    const validator = gameValidators[game_slug];
+    if (validator) {
+      const check = validator(oldData, new_data);
+      if (!check.valid) {
+        console.warn(`🚨 Triche détectée [${game_slug}] : ${check.reason}`);
+        return new Response(JSON.stringify({ error: "Validation failed", reason: check.reason }), { 
+          status: 403, 
+          headers: corsHeaders 
+        });
+      }
+    }
+
+    // C. Sécurité Générique (Gains de bananes)
+    // Utile comme filet de sécurité si tu oublies de configurer un validator
+    const newBananes = Number(new_data.bananes) || 0;
+    const oldBananes = Number(oldData?.bananes) || 0;
     if (newBananes - oldBananes > 1000) {
-      return new Response(JSON.stringify({ error: "Abnormal gain" }), { status: 403, headers: corsHeaders })
+      return new Response(JSON.stringify({ error: "Abnormal gain" }), { 
+        status: 403, 
+        headers: corsHeaders 
+      });
     }
 
-    // 5. Enregistrement
+    // 5. Tout est OK -> Enregistrement
     const { error: upsertError } = await supabaseAdmin
       .from('user_game_data')
       .upsert({
@@ -72,20 +96,17 @@ Deno.serve(async (req) => {
         game_slug: game_slug,
         data: new_data,
         updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id,game_slug' })
+      }, { onConflict: 'user_id,game_slug' });
 
-    if (upsertError) throw upsertError
+    if (upsertError) throw upsertError;
 
     return new Response(JSON.stringify({ status: "success" }), { 
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     })
-
-  } catch (err) {
+    
+    } catch (err) {
     console.error("Crash Secure Sync:", err.message)
-    return new Response(JSON.stringify({ error: err.message }), { 
-      status: 500, 
-      headers: corsHeaders 
-    })
+    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders })
   }
 })
