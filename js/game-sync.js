@@ -33,7 +33,7 @@ export const GameSync = {
                     localData = envelope; 
                 } else {
                     // VERIFICATION DU SCEAU
-                    const expectedSignature = await generateSignature(JSON.stringify(envelope.payload));
+                    const expectedSignature = await this.generateSignature(JSON.stringify(envelope.payload));
                     if (envelope.signature === expectedSignature) {
                         localData = envelope.payload;
                     } else {
@@ -53,7 +53,7 @@ export const GameSync = {
                 // Ici aussi on pourrait vérifier une signature cloud si on veut être paranoïaque
                 localStorage.setItem(`save_${gameSlug}`, JSON.stringify({
                     payload: data.data,
-                    signature: await generateSignature(JSON.stringify(data.data))
+                    signature: await this.generateSignature(JSON.stringify(data.data))
                 }));
                 return data.data;
             }
