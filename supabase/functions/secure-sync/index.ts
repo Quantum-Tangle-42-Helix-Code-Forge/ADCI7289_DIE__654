@@ -81,16 +81,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // C. Sécurité Générique (Gains de bananes)
-    // Utile comme filet de sécurité si tu oublies de configurer un validator
-    const newBananes = Number(new_data.bananes) || 0;
-    const oldBananes = Number(oldData?.bananes) || 0;
-    if (newBananes - oldBananes > 1000) {
-      return new Response(JSON.stringify({ error: "Abnormal gain" }), { 
-        status: 403, 
-        headers: corsHeaders 
-      });
-    }
+
 
     // 5. Tout est OK -> Enregistrement
     const { error: upsertError } = await supabaseAdmin

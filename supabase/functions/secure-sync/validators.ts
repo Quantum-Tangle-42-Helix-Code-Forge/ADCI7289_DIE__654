@@ -31,7 +31,7 @@ export function validate_tetris3(oldData: any, newData: any): ValidationResult {
     const newTs = Number(newData.saved_at) || 0;
     const oldTs = Number(oldData.saved_at) || 0;
 
-    if (newTs <= oldTs) {
+    if (newTs < oldTs) {
       return { valid: false, reason: "Attempting to overwrite with older or same data" };
     }
   }
