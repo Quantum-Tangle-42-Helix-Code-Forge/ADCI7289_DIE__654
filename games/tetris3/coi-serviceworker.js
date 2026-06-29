@@ -10,6 +10,14 @@ if (typeof window === 'undefined') {
         if (url.includes("cdn-cgi/rum")) {
             return;
         }
+        
+        // Si c'est Paddle, on force le mode opaque/no-cors pour éviter le blocage CORP
+		if (request.url.includes("paddle.com")) {
+			request = new Request(request.url, {
+				mode: "no-cors",
+				credentials: "omit"
+			});
+		}
 
         if (event.request.cache === "only-if-cached" && event.request.mode !== "same-origin") {
             return;

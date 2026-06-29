@@ -105,6 +105,47 @@ body {
 	margin: 0 auto;
 }
 
+#error-browser-container {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #141619; /* Couleur de fond sombre type Godot */
+    color: #ffffff;
+    font-family: sans-serif;
+    z-index: 9999;
+    justify-content: center;
+    align-serif: center;
+    align-items: center;
+    text-align: center;
+    padding: 20px;
+    box-sizing: border-box;
+}
+.error-box {
+    max-width: 500px;
+    background: #202328;
+    padding: 30px;
+    border-radius: 8px;
+    border: 1px solid #ff453a;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+}
+.error-box h2 {
+    color: #ff453a;
+    margin-top: 0;
+}
+.error-box p {
+    line-height: 1.5;
+    color: #e0e0e0;
+}
+.error-box ul {
+    text-align: left;
+    display: inline-block;
+    margin: 15px 0;
+}
+
+
 #status-notice {
 	background-color: #5b3943;
 	border-radius: 0.5rem;
@@ -124,6 +165,20 @@ body {
 
 	</head>
 	<body>
+		<div id="error-browser-container">
+			<div class="error-box">
+				<h2>Navigateur non supporté</h2>
+				<p>Désolé ! Votre navigateur actuel ne possède pas les technologies requises pour faire tourner ce jeu vidéo moderne.</p>
+				<p>Le jeu a besoin des éléments suivants :</p>
+				<ul>
+					<li><strong>WebGL 2.0</strong> (Accélération graphique)</li>
+					<li><strong>WebAssembly</strong> (Exécution du moteur de jeu)</li>
+				</ul>
+				<p><strong>Comment régler cela ?</strong><br>
+				Veuillez utiliser un navigateur moderne à jour (Chrome, Firefox, Edge, Opera) ou vérifier que le WebGL n'a pas été désactivé dans vos options de sécurité (comme sur LibreWolf).</p>
+			</div>
+		</div>
+
 		<canvas id="canvas">
 			Your browser does not support the canvas tag.
 		</canvas>
@@ -137,6 +192,39 @@ body {
 			<progress id="status-progress"></progress>
 			<div id="status-notice"></div>
 		</div>
+		
+		<script>
+			(function() {
+				function checkCompatibility() {
+					// 1. Vérification de WebAssembly
+					const hasWasm = typeof WebAssembly === "object" && typeof WebAssembly.instantiate === "function";
+					
+					// 2. Vérification de WebGL2
+					let hasWebGL2 = false;
+					try {
+						const canvas = document.createElement("canvas");
+						hasWebGL2 = !!(window.WebGL2RenderingContext && canvas.getContext("webgl2"));
+					} catch (e) {
+						hasWebGL2 = false;
+					}
+
+					// Si l'un des deux échoue, on affiche le message et on bloque la suite
+					if (!hasWasm || !hasWebGL2) {
+						document.getElementById("error-browser-container").style.display = "flex";
+						
+						// Bloque l'exécution du moteur Godot en coupant les fonctions de démarrage si elles existent
+						if (window.window.stop) {
+							window.window.stop(); 
+						}
+						throw new Error("Game stopped: Browser compatibility check failed.");
+					}
+				}
+
+				// Exécution immédiate de la vérification
+				checkCompatibility();
+			})();
+
+		</script>
 
 		<script src="index.js"></script>
 		<script>
