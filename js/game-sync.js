@@ -122,7 +122,7 @@ export const GameSync = {
 	},
 
     async sync(gameSlug) {
-		if (isSyncDisabled) return;
+		if (isSyncDisabled === true) return;
 		
 		try {
 			// 1. Vérifier si l'utilisateur est connecté
@@ -153,22 +153,34 @@ export const GameSync = {
 			});
 
 			if (error) {
-				// Si l'erreur est une 403 (triche détectée), on prévient Godot
-				if (error.status === 403) {
-                    console.error("🚨 FUSIBLE SAUTÉ : Le serveur a rejeté la sauvegarde définitivement.");
-                    isSyncDisabled = true; // ON COUPE LE COURANT
-                    if (syncTimer) {
+				const err = error;
+				// On cherche le status 403 partout où il peut se cacher
+				const statusCode = err.status || (err.context ? err.context.status : null);
+				
+				console.warn("📥 Erreur Serveur détectée, Status:", statusCode);
+
+				if (statusCode === 403 || statusCode === 401 || err.message?.includes("403")) {
+					console.error("🚨 FUSIBLE SAUTÉ : Le serveur a rejeté la sauvegarde (Sécurité).");
+					isSyncDisabled = true; // ON COUPE LE COURANT
+					
+					if (syncTimer) {
 						clearTimeout(syncTimer);
 						syncTimer = null;
 					}
-                    window.on_sync_finished?.("FORBIDDEN"); // On prévient Godot
-                    return;
-                }
-				throw error;
+					
+					window.on_sync_finished?.("FORBIDDEN"); // On prévient Godot
+					return;
+				}
+				throw err;
 			}
 			console.log("☁️ Sauvegarde Cloud réussie.");
+			window.on_sync_finished?.("OK");
 		} catch (err) {
 			console.error("❌ Erreur SECURE-SYNC :", err.message);
+			if (err.message?.includes("403")) {
+				isSyncDisabled = true;
+				window.on_sync_finished?.("FORBIDDEN");
+			}
 		}
 	}
 
