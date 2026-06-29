@@ -7,7 +7,7 @@ let isSyncDisabled = false;
 export const GameSync = {
 	
 	// Fonction interne pour générer une signature
-	async function generateSignature(dataString) {
+	async generateSignature(dataString) {
 		const encoder = new TextEncoder();
 		const keyData = encoder.encode(SAVE_SALT);
 		const msgData = encoder.encode(dataString);
