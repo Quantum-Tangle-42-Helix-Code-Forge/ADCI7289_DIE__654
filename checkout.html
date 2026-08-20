@@ -107,11 +107,20 @@
         // 2. VÉRIFICATION ET RECUPÉRATION DE L'UTILISATEUR ACTIF
         // -------------------------------------------------------------
         const { data: { user } } = await supabaseClient.auth.getUser();
-        if (!user) {
-            statusText.innerText = "Connexion requise...";
-            window.location.href = `login.html`;
-            return;
-        }
+
+		if (!user) {
+			statusText.innerText = "❌ Connexion requise pour finaliser l'achat.";
+			btnProceed.disabled = false;
+			btnProceed.innerText = "SE CONNECTER";
+			btnProceed.classList.remove('btn-pay');
+			
+			// Au lieu d'une redirection automatique, on attend le clic
+			btnProceed.onclick = () => {
+				const currentUrl = encodeURIComponent(window.location.href);
+				window.location.href = `login.html?redirect_to=${currentUrl}`;
+			};
+			return;
+		}
 
         // Requête sur store_products
         const { data: product, error } = await supabaseClient
