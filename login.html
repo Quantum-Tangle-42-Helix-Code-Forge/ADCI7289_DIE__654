@@ -129,7 +129,14 @@
                 submitBtn.innerText = "Log in";
             } else {
                 // Succès : Redirection vers l'accueil
-                window.location.href = "index.html";
+                const urlParams = new URLSearchParams(window.location.search);
+				const redirectTo = urlParams.get('redirect_to');
+
+				if (redirectTo) {
+					window.location.href = decodeURIComponent(redirectTo);
+				} else {
+					window.location.href = 'index.html';
+				}
             }
         };
 
@@ -137,7 +144,14 @@
         async function checkSession() {
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
-                window.location.href = "index.html";
+                const urlParams = new URLSearchParams(window.location.search);
+				const redirectTo = urlParams.get('redirect_to');
+
+				if (redirectTo) {
+					window.location.href = decodeURIComponent(redirectTo);
+				} else {
+					window.location.href = 'index.html';
+				}
             }
         }
         checkSession();
