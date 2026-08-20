@@ -67,87 +67,91 @@
     import { supabaseClient, PADDLE_ENV, PADDLE_CLIENT_TOKEN } from './js/config.js';
     
     const urlParams = new URLSearchParams(window.location.search);
-    const priceId = urlParams.get('price_id');
-    const gameSlug = urlParams.get('game');
+    const checkoutToken = urlParams.get('checkout_token');
     
-    // Jetons transmis depuis le jeu exporté (Windows / Mobile)
-    const passedAccessToken = urlParams.get('access_token');
-    const passedRefreshToken = urlParams.get('refresh_token');
+    // Fallbacks si ouverture directe sans token temporaire
+    let priceId = urlParams.get('price_id');
+    let gameSlug = urlParams.get('game');
 
     const btnProceed = document.getElementById('btn-proceed');
     const statusText = document.getElementById('status-text');
 
     async function initCheckout() {
+        let activeUser = null;
+
+        // -------------------------------------------------------------
+        // 1. VALIDATION DU TOKEN DE CHECKOUT TEMPORAIRE
+        // -------------------------------------------------------------
+        if (checkoutToken) {
+            statusText.innerText = "Validation de la session d'achat...";
+
+            try {
+                // Consommation du jeton temporaire enregistre dans la table checkout_sessions
+                const { data: sessionData, error: sessionError } = await supabaseClient
+                    .from('checkout_sessions')
+                    .select('*')
+                    .eq('token', checkoutToken)
+                    .gt('expires_at', new Date().toISOString())
+                    .single();
+
+                if (sessionData && !sessionError) {
+                    priceId = sessionData.price_id;
+                    gameSlug = sessionData.game_slug;
+                    
+                    // Chargement du profil utilisateur associé à la session d'achat
+                    const { data: userData } = await supabaseClient
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', sessionData.user_id)
+                        .single();
+                        
+                    activeUser = { id: sessionData.user_id, email: sessionData.user_email, ...userData };
+
+                    // Invalidation immediate du token pour empecher la reutilisation
+                    await supabaseClient
+                        .from('checkout_sessions')
+                        .delete()
+                        .eq('token', checkoutToken);
+
+                } else {
+                    console.warn("Jeton temporaire expiré ou invalide.");
+                }
+
+                // Nettoyage de l'URL dans la barre d'adresse
+                const cleanUrl = new URL(window.location.href);
+                cleanUrl.searchParams.delete('checkout_token');
+                window.history.replaceState({}, document.title, cleanUrl.toString());
+
+            } catch (err) {
+                console.error("Erreur lors de la validation du checkout_token :", err);
+            }
+        }
+
+        // -------------------------------------------------------------
+        // 2. RECUPERATION DE L'UTILISATEUR ACTIF (Si pas de checkout_token)
+        // -------------------------------------------------------------
+        if (!activeUser) {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            activeUser = user;
+        }
+
+        if (!activeUser) {
+            statusText.innerText = "❌ Connexion requise pour finaliser l'achat.";
+            btnProceed.disabled = false;
+            btnProceed.innerText = "SE CONNECTER";
+            btnProceed.classList.remove('btn-pay');
+            
+            btnProceed.onclick = () => {
+                const currentUrl = encodeURIComponent(window.location.href);
+                window.location.href = `login.html?redirect_to=${currentUrl}`;
+            };
+            return;
+        }
+
+        // -------------------------------------------------------------
+        // 3. RECUPERATION DU PRODUIT
+        // -------------------------------------------------------------
         console.log("Recherche du PriceID:", priceId);
-
-        // -------------------------------------------------------------
-        // 1. GESTION DUTRANSFERT DE SESSION DEPUIS LE JEU (Profil A vs Profil B)
-        // -------------------------------------------------------------
-        if (passedAccessToken && passedRefreshToken) {
-			statusText.innerText = "Synchronisation du compte...";
-			
-			try {
-				// Tente de restaurer la session complète
-				const { error: sessionError } = await supabaseClient.auth.setSession({
-					access_token: decodeURIComponent(passedAccessToken),
-					refresh_token: decodeURIComponent(passedRefreshToken)
-				});
-
-				if (sessionError) {
-					console.warn("Échec refresh_token, tentative d'injection directe du JWT...");
-					
-					// Secours : Si le refresh_token est invalide, on force le LocalStorage avec l'access_token
-					const projectRef = "axccjtcgesjbpcdigwkp"; // Ton ID de projet Supabase
-					const storageKey = `sb-${projectRef}-auth-token`;
-					
-					// Décodage basique pour vérifier si l'access_token est encore valide
-					const sessionData = {
-						access_token: decodeURIComponent(passedAccessToken),
-						refresh_token: decodeURIComponent(passedRefreshToken),
-						token_type: "bearer"
-					};
-					
-					localStorage.setItem(storageKey, JSON.stringify(sessionData));
-					
-					// Rechargement léger sans les paramètres URL toxiques
-					const cleanUrl = new URL(window.location.href);
-					cleanUrl.searchParams.delete('access_token');
-					cleanUrl.searchParams.delete('refresh_token');
-					window.location.href = cleanUrl.toString();
-					return;
-				}
-
-				// Nettoyage de la barre d'adresse
-				const cleanUrl = new URL(window.location.href);
-				cleanUrl.searchParams.delete('access_token');
-				cleanUrl.searchParams.delete('refresh_token');
-				window.history.replaceState({}, document.title, cleanUrl.toString());
-
-			} catch (err) {
-				console.error("Erreur lors du traitement des tokens :", err);
-			}
-		}
-
-        // -------------------------------------------------------------
-        // 2. VÉRIFICATION ET RECUPÉRATION DE L'UTILISATEUR ACTIF
-        // -------------------------------------------------------------
-        const { data: { user } } = await supabaseClient.auth.getUser();
-
-		if (!user) {
-			statusText.innerText = "❌ Connexion requise pour finaliser l'achat.";
-			btnProceed.disabled = false;
-			btnProceed.innerText = "SE CONNECTER";
-			btnProceed.classList.remove('btn-pay');
-			
-			// Au lieu d'une redirection automatique, on attend le clic
-			btnProceed.onclick = () => {
-				const currentUrl = encodeURIComponent(window.location.href);
-				window.location.href = `login.html?redirect_to=${currentUrl}`;
-			};
-			return;
-		}
-
-        // Requête sur store_products
         const { data: product, error } = await supabaseClient
             .from('store_products')
             .select('*')
@@ -160,7 +164,7 @@
             return;
         }
 
-        // Affichage des informations
+        // Affichage des informations du produit
         document.getElementById('product-name').innerText = product.name || "Achat In-Game";
         document.getElementById('price-display').innerText = `ID: ${priceId}`;
         
@@ -177,17 +181,21 @@
         Paddle.Initialize({ token: PADDLE_CLIENT_TOKEN });
 
         btnProceed.disabled = false;
-        statusText.innerText = `Connecté en tant que ${user.user_metadata?.display_name || user.email}. Prêt pour le paiement.`;
+        statusText.innerText = `Connecté en tant que ${activeUser.display_name || activeUser.email}. Prêt pour le paiement.`;
 
+        // -------------------------------------------------------------
+        // 4. TRANSACTION ET OUVERTURE DU PAIEMENT
+        // -------------------------------------------------------------
         btnProceed.onclick = async () => {
             btnProceed.disabled = true;
             statusText.innerText = "Génération de la transaction Paddle...";
 
             try {
-                // Création du checkout via l'Edge Function
                 const { data, error: funcError } = await supabaseClient.functions.invoke("create-checkout", {
                     body: { 
                         price_id: priceId,
+                        game_slug: gameSlug,
+                        user_id: activeUser.id,
                         current_url: window.location.href
                     }
                 });
