@@ -64,106 +64,130 @@
     </div>
 
     <script type="module">
-        import { supabaseClient, PADDLE_ENV, PADDLE_CLIENT_TOKEN } from './js/config.js';
-        
-        const urlParams = new URLSearchParams(window.location.search);
-        const priceId = urlParams.get('price_id');
-        const gameSlug = urlParams.get('game');
+    import { supabaseClient, PADDLE_ENV, PADDLE_CLIENT_TOKEN } from './js/config.js';
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const priceId = urlParams.get('price_id');
+    const gameSlug = urlParams.get('game');
+    
+    // Jetons transmis depuis le jeu exporté (Windows / Mobile)
+    const passedAccessToken = urlParams.get('access_token');
+    const passedRefreshToken = urlParams.get('refresh_token');
 
-        const btnProceed = document.getElementById('btn-proceed');
-        const statusText = document.getElementById('status-text');
+    const btnProceed = document.getElementById('btn-proceed');
+    const statusText = document.getElementById('status-text');
 
-        async function initCheckout() {
-            // 1. Vérifier l'auth
-            console.log("Recherche du PriceID:", priceId); // Debug console
+    async function initCheckout() {
+        console.log("Recherche du PriceID:", priceId);
 
-			const { data: { user } } = await supabaseClient.auth.getUser();
-			if (!user) {
-				statusText.innerText = "Connexion requise...";
-				window.location.href = `login.html`;
-				return;
-			}
+        // -------------------------------------------------------------
+        // 1. GESTION DUTRANSFERT DE SESSION DEPUIS LE JEU (Profil A vs Profil B)
+        // -------------------------------------------------------------
+        if (passedAccessToken && passedRefreshToken) {
+            statusText.innerText = "Synchronisation du compte joueur...";
+            
+            // Applique la session provenant du jeu dans le navigateur
+            const { error: sessionError } = await supabaseClient.auth.setSession({
+                access_token: passedAccessToken,
+                refresh_token: passedRefreshToken
+            });
 
-			// Requête simplifiée sans jointure complexe pour tester
-			const { data: product, error } = await supabaseClient
-				.from('store_products')
-				.select('*')
-				.eq('price_id', priceId)
-				.single();
-
-			if (error || !product) {
-				console.error("Erreur Supabase:", error);
-				statusText.innerText = "Produit introuvable dans store_products.";
-				return;
-			}
-
-			// Affichage
-			document.getElementById('product-name').innerText = product.name || "Achat In-Game";
-			document.getElementById('price-display').innerText = `ID: ${priceId}`;
-			
-			// Si tu as ajouté image_url dans store_products, on l'utilise. 
-			// Sinon on met une image par défaut ou on cherche le jeu.
-			const visualUrl = product.image_url || "https://via.placeholder.com/400x250?text=Aksess+Store";
-			
-			if(product.animation_url) {
-				document.getElementById('visual-container').innerHTML = `<video src="${product.animation_url}" autoplay loop muted></video>`;
-			} else {
-				document.getElementById('visual-container').innerHTML = `<img src="${visualUrl}" alt="Aperçu">`;
-			}
-
-			// Initialisation Paddle
-			Paddle.Environment.set(PADDLE_ENV);
-			Paddle.Initialize({ token: PADDLE_CLIENT_TOKEN });
-
-			btnProceed.disabled = false;
-            statusText.innerText = "Prêt pour le paiement.";
-
-            btnProceed.onclick = async () => {
-                btnProceed.disabled = true;
-                statusText.innerText = "Génération de la transaction Paddle...";
-
-                try {
-                    // Appel à ton Edge Function existante
-                    const { data, error: funcError } = await supabaseClient.functions.invoke("create-checkout", {
-                        body: { 
-							price_id: priceId ,
-							current_url: window.location.href
-							
-							}
-                    });
-
-                    if (funcError || !data.transaction_id) throw new Error("Erreur Backend");
-
-                    Paddle.Checkout.open({
-						transactionId: data.transaction_id,
-						settings: {
-							displayMode: "overlay",
-							theme: "dark",
-							locale: "fr"
-						},
-						eventCallback: async function(event) {
-							// Si l'utilisateur ferme la fenêtre sans payer
-							if (event.name === "checkout.closed") {
-								console.log("Fenêtre fermée par l'utilisateur");
-								// On peut notifier Supabase que c'est probablement abandonné
-								await supabaseClient
-									.from("payment_intents")
-									.update({ status: "abandoned" })
-									.eq("paddle_transaction_id", data.transaction_id)
-									.eq("status", "pending"); // Ne pas écraser si déjà 'completed' via Webhook
-							}
-						}
-					});
-                    
-                    statusText.innerText = "Fenêtre de paiement ouverte.";
-                } catch (err) {
-                    alert("Erreur : " + err.message);
-                    btnProceed.disabled = false;
-                }
-            };
+            if (sessionError) {
+                console.error("Erreur de synchronisation de la session:", sessionError);
+            } else {
+                // Nettoyage de l'URL pour ne pas laisser les jetons visibles dans la barre d'adresse
+                const cleanUrl = new URL(window.location.href);
+                cleanUrl.searchParams.delete('access_token');
+                cleanUrl.searchParams.delete('refresh_token');
+                window.history.replaceState({}, document.title, cleanUrl.toString());
+            }
         }
 
-        initCheckout();
-    </script>
+        // -------------------------------------------------------------
+        // 2. VÉRIFICATION ET RECUPÉRATION DE L'UTILISATEUR ACTIF
+        // -------------------------------------------------------------
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) {
+            statusText.innerText = "Connexion requise...";
+            window.location.href = `login.html`;
+            return;
+        }
+
+        // Requête sur store_products
+        const { data: product, error } = await supabaseClient
+            .from('store_products')
+            .select('*')
+            .eq('price_id', priceId)
+            .single();
+
+        if (error || !product) {
+            console.error("Erreur Supabase:", error);
+            statusText.innerText = "Produit introuvable dans store_products.";
+            return;
+        }
+
+        // Affichage des informations
+        document.getElementById('product-name').innerText = product.name || "Achat In-Game";
+        document.getElementById('price-display').innerText = `ID: ${priceId}`;
+        
+        const visualUrl = product.image_url || "https://via.placeholder.com/400x250?text=Aksess+Store";
+        
+        if (product.animation_url) {
+            document.getElementById('visual-container').innerHTML = `<video src="${product.animation_url}" autoplay loop muted></video>`;
+        } else {
+            document.getElementById('visual-container').innerHTML = `<img src="${visualUrl}" alt="Aperçu">`;
+        }
+
+        // Initialisation de Paddle
+        Paddle.Environment.set(PADDLE_ENV);
+        Paddle.Initialize({ token: PADDLE_CLIENT_TOKEN });
+
+        btnProceed.disabled = false;
+        statusText.innerText = `Connecté en tant que ${user.user_metadata?.display_name || user.email}. Prêt pour le paiement.`;
+
+        btnProceed.onclick = async () => {
+            btnProceed.disabled = true;
+            statusText.innerText = "Génération de la transaction Paddle...";
+
+            try {
+                // Création du checkout via l'Edge Function
+                const { data, error: funcError } = await supabaseClient.functions.invoke("create-checkout", {
+                    body: { 
+                        price_id: priceId,
+                        current_url: window.location.href
+                    }
+                });
+
+                if (funcError || !data.transaction_id) throw new Error("Erreur Backend");
+
+                Paddle.Checkout.open({
+                    transactionId: data.transaction_id,
+                    settings: {
+                        displayMode: "overlay",
+                        theme: "dark",
+                        locale: "fr"
+                    },
+                    eventCallback: async function(event) {
+                        if (event.name === "checkout.closed") {
+                            console.log("Fenêtre fermée par l'utilisateur");
+                            await supabaseClient
+                                .from("payment_intents")
+                                .update({ status: "abandoned" })
+                                .eq("paddle_transaction_id", data.transaction_id)
+                                .eq("status", "pending");
+                        }
+                    }
+                });
+                
+                statusText.innerText = "Fenêtre de paiement ouverte.";
+            } catch (err) {
+                alert("Erreur : " + err.message);
+                btnProceed.disabled = false;
+            }
+        };
+    }
+
+    initCheckout();
+</script>
 </body>
 </html>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Authentification du Jeu - aksess.com</title>
+    <script src="https://jsdelivr.net"></script>
+</head>
+<body style="background:#141414; color:white; font-family:sans-serif; text-align:center; padding-top:100px;">
+    <h2>Connexion à votre jeu en cours...</h2>
+    <p id="status">Vérification de la session Supabase...</p>
+
+    <script type="module">
+        import { SUPABASE_URL, SUPABASE_KEY } from './js/config.js';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        async function checkAuthAndRedirect() {
+            const statusJson = document.getElementById('status');
+            
+            // 1. Récupérer la session actuelle du navigateur
+            const { data: { session }, error } = await supabase.auth.getSession();
+
+            if (error || !session) {
+                // Si l'utilisateur n'est pas connecté sur le site, on le redirige vers votre page de login classique
+                // en ajoutant un paramètre pour revenir ici après
+                statusJson.innerText = "Non connecté. Redirection vers la page de connexion...";
+                window.location.href = "login.html?redirect=game-auth.html";
+                return;
+            }
+
+            // 2. Extraire les données nécessaires pour le jeu
+            const token = session.access_token;
+            const userId = session.user.id;
+
+            statusJson.innerText = "Session trouvée ! Redirection vers le jeu...";
+
+            // 3. Envoyer les données vers le jeu via le Deep Link
+            // Le format : aksess-game://auth?token=VALEUR&id=VALEUR
+            window.location.href = `aksess-game://auth?token=${token}&id=${userId}`;
+
+            // Optionnel : Fermer l'onglet après quelques secondes pour nettoyer le navigateur de l'utilisateur
+            setTimeout(() => {
+                statusJson.innerText = "Vous pouvez fermer cette fenêtre et retourner sur votre jeu.";
+            }, 2000);
+        }
+
+        // Exécuter la vérification au chargement
+        window.onload = checkAuthAndRedirect;
+    </script>
+</body>
+</html>
