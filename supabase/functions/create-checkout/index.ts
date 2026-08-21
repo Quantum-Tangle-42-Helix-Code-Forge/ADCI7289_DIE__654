@@ -29,8 +29,8 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
     }
 
-    // 1. On récupère le price_id ET l'url actuelle du joueur depuis la requête du frontend
-    const { price_id, current_url } = await req.json();
+    // 1. Récupération des paramètres envoyés par le frontend (Ajout de game_slug)
+    const { price_id, current_url, game_slug } = await req.json();
     if (!price_id) {
       return new Response(JSON.stringify({ error: "Missing price_id" }), { status: 400, headers: corsHeaders });
     }
@@ -51,10 +51,19 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: `Product not found` }), { status: 400, headers: corsHeaders });
     }
 
-    // Insertion de l'intention de paiement
+    // Définition d'un slug de secours propre si la variable est vide
+    const cleanGameSlug = game_slug || "default_game";
+
+    // Insertion de l'intention de paiement (avec game_slug inclus localement)
     const { data: intent, error: intentError } = await supabaseAdmin
       .from("payment_intents")
-      .insert([{ user_id: user.id, store_product_id: product.id, paddle_price_id: price_id, status: "pending" }])
+      .insert([{ 
+        user_id: user.id, 
+        store_product_id: product.id, 
+        paddle_price_id: price_id, 
+        status: "pending",
+        game_slug: cleanGameSlug // Optionnel : à retirer si votre table n'a pas cette colonne
+      }])
       .select()
       .single();
 
@@ -63,10 +72,9 @@ Deno.serve(async (req) => {
     const paddleSecretKey = Deno.env.get("PADDLE_API_KEY");
     if (!paddleSecretKey) throw new Error("Paddle API key is missing on Supabase.");
 
-    // 2. Appel à Paddle en lui passant dynamiquement l'adresse de retour
-    // Si current_url n'est pas fourni, on met ta racine par défaut
     const finalReturnUrl = current_url || "https://www.aksess-games.com";
 
+    // 2. Appel à Paddle en lui transmettant le game_slug dans les custom_data
     const paddleResponse = await fetch("https://sandbox-api.paddle.com/transactions", {
       method: "POST",
       headers: { 
@@ -76,9 +84,14 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         items: [{ price_id: price_id, quantity: 1 }],
         checkout: {
-          return_url: finalReturnUrl // <-- MAGIE : Paddle sait maintenant exactement d'où vient le joueur !
+          return_url: finalReturnUrl
         },
-        custom_data: { user_id: user.id, payment_intent_id: intent.id }
+        // 🟢 MODIFICATION : Inclusion de game_slug pour transmission au webhook
+        custom_data: { 
+          user_id: user.id, 
+          payment_intent_id: intent.id,
+          game_slug: cleanGameSlug
+        }
       })
     });
 
@@ -91,19 +104,19 @@ Deno.serve(async (req) => {
     }
     
     // Sauvegarder les informations Paddle dans payment_intents
-	const { error: updateError } = await supabaseAdmin
-	  .from("payment_intents")
-	  .update({
-		paddle_transaction_id: paddleData.data.id,
-		checkout_id: paddleData.data.checkout?.id ?? null,
-		checkout_url: paddleData.data.checkout?.url ?? null,
-		status: "initiated"
-	  })
-	  .eq("id", intent.id);
+    const { error: updateError } = await supabaseAdmin
+      .from("payment_intents")
+      .update({
+        paddle_transaction_id: paddleData.data.id,
+        checkout_id: paddleData.data.checkout?.id ?? null,
+        checkout_url: paddleData.data.checkout?.url ?? null,
+        status: "initiated"
+      })
+      .eq("id", intent.id);
 
-	if (updateError) {
-	  throw updateError;
-	}
+    if (updateError) {
+      throw updateError;
+    }
 
     return new Response(
       JSON.stringify({ 
