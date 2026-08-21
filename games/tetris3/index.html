@@ -538,24 +538,20 @@ const engine = new Engine(GODOT_CONFIG);
 			};
 
 			// GESTION DES TRANSACTIONS PADDLE
-			window.requestPendingTransactions = async function () {
+			window.requestPendingTransactions = async function (gameSlug) {
 				try {
 					const { data, error } = await supabaseClient.rpc(
-						"claim_pending_rewards"
+						"claim_pending_rewards",
+						{ p_game_slug: gameSlug }
 					);
-					if (error)
-						throw error;
+					if (error) throw error;
+					
 					if (window.on_transactions_received) {
-						window.on_transactions_received(
-							JSON.stringify(data || [])
-						);
+						window.on_transactions_received(JSON.stringify(data || []));
 					}
-				}
-
-				catch (e) {
-					console.error(e);
-					if (window.on_transactions_received)
-						window.on_transactions_received("[]");
+				} catch (e) {
+					console.error("Erreur réclamation Web :", e);
+					if (window.on_transactions_received) window.on_transactions_received("[]");
 				}
 			};
 
