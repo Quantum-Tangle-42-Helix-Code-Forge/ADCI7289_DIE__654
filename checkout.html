@@ -164,7 +164,18 @@
 
 		if (error || !product) {
 			console.error("Erreur Supabase:", error);
-			statusText.innerText = "Produit introuvable dans store_products.";
+			
+			// Modification des textes
+			statusText.innerText = "Produit introuvable dans store_products. inutile de recharger la page. essayez de nouveau dans le jeux";
+			btnProceed.innerText = "OUPS !!!";
+			document.getElementById('visual-container').innerText = "Pas d'aperçu disponible";
+			
+			// 🟢 APPLICATION DU STYLE ROUGE FLAMBOYANT ET GRAND
+			statusText.style.color = "#ff3333";          // Rouge vif flamboyant
+			statusText.style.fontSize = "1.5rem";        // Augmente la taille (ajustez à 24px ou 2rem si nécessaire)
+			statusText.style.fontWeight = "bold";        // Met le texte en gras pour plus d'impact
+			statusText.style.textShadow = "0 0 10px rgba(255, 51, 51, 0.5)"; // Effet de lueur "flamboyante"
+			
 			return;
 		}
 
