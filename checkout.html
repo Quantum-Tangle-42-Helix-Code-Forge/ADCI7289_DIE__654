@@ -77,157 +77,163 @@
     const statusText = document.getElementById('status-text');
 
     async function initCheckout() {
-        let activeUser = null;
+		let activeUser = null;
+		let isFromToken = false; // Indique si l'utilisateur provient du jeton du jeu
 
-        // -------------------------------------------------------------
-        // 1. VALIDATION DU TOKEN DE CHECKOUT TEMPORAIRE
-        // -------------------------------------------------------------
-        if (checkoutToken) {
-            statusText.innerText = "Validation de la session d'achat...";
+		// -------------------------------------------------------------
+		// 1. VALIDATION DU TOKEN DE CHECKOUT TEMPORAIRE (Priorité Absolue)
+		// -------------------------------------------------------------
+		if (checkoutToken) {
+			statusText.innerText = "Validation de la session d'achat...";
 
-            try {
-                // Consommation du jeton temporaire enregistre dans la table checkout_sessions
-                const { data: sessionData, error: sessionError } = await supabaseClient
-                    .from('checkout_sessions')
-                    .select('*')
-                    .eq('token', checkoutToken)
-                    .gt('expires_at', new Date().toISOString())
-                    .single();
+			try {
+				const { data: sessionData, error: sessionError } = await supabaseClient
+					.from('checkout_sessions')
+					.select('*')
+					.eq('token', checkoutToken)
+					.gt('expires_at', new Date().toISOString())
+					.single();
 
-                if (sessionData && !sessionError) {
-                    priceId = sessionData.price_id;
-                    gameSlug = sessionData.game_slug;
-                    
-                    // Chargement du profil utilisateur associé à la session d'achat
-                    const { data: userData } = await supabaseClient
-                        .from('profiles')
-                        .select('*')
-                        .eq('id', sessionData.user_id)
-                        .single();
-                        
-                    activeUser = { id: sessionData.user_id, email: sessionData.user_email, ...userData };
+				if (sessionData && !sessionError) {
+					priceId = sessionData.price_id;
+					gameSlug = sessionData.game_slug;
+					
+					// On charge le profil de l'utilisateur lié au TOKEN (celui du jeu Linux)
+					const { data: userData } = await supabaseClient
+						.from('profiles')
+						.select('*')
+						.eq('id', sessionData.user_id)
+						.single();
+						
+					activeUser = { id: sessionData.user_id, email: sessionData.user_email, ...userData };
+					isFromToken = true; // On valide qu'on utilise la session du jeu
 
-                    // Invalidation immediate du token pour empecher la reutilisation
-                    await supabaseClient
-                        .from('checkout_sessions')
-                        .delete()
-                        .eq('token', checkoutToken);
+					// Invalidation immédiate du token
+					await supabaseClient
+						.from('checkout_sessions')
+						.delete()
+						.eq('token', checkoutToken);
 
-                } else {
-                    console.warn("Jeton temporaire expiré ou invalide.");
-                }
+				} else {
+					console.warn("Jeton temporaire expiré ou invalide.");
+				}
 
-                // Nettoyage de l'URL dans la barre d'adresse
-                const cleanUrl = new URL(window.location.href);
-                cleanUrl.searchParams.delete('checkout_token');
-                window.history.replaceState({}, document.title, cleanUrl.toString());
+				// Nettoyage de l'URL
+				const cleanUrl = new URL(window.location.href);
+				cleanUrl.searchParams.delete('checkout_token');
+				window.history.replaceState({}, document.title, cleanUrl.toString());
 
-            } catch (err) {
-                console.error("Erreur lors de la validation du checkout_token :", err);
-            }
-        }
+			} catch (err) {
+				console.error("Erreur lors de la validation du checkout_token :", err);
+			}
+		}
 
-        // -------------------------------------------------------------
-        // 2. RECUPERATION DE L'UTILISATEUR ACTIF (Si pas de checkout_token)
-        // -------------------------------------------------------------
-        if (!activeUser) {
-            const { data: { user } } = await supabaseClient.auth.getUser();
-            activeUser = user;
-        }
+		// -------------------------------------------------------------
+		// 2. RECUPERATION DE L'UTILISATEUR ACTIF (UNIQUEMENT si pas de token)
+		// -------------------------------------------------------------
+		// 🟢 CORRECTION : Si isFromToken est vrai, on skip TOTALEMENT ce bloc
+		// pour éviter que le compte connecté sur Chrome ne vienne écraser le joueur Linux
+		if (!activeUser && !isFromToken) {
+			console.log("Aucun token détecté, lecture de la session du navigateur...");
+			const { data: { user } } = await supabaseClient.auth.getUser();
+			activeUser = user;
+		}
 
-        if (!activeUser) {
-            statusText.innerText = "❌ Connexion requise pour finaliser l'achat.";
-            btnProceed.disabled = false;
-            btnProceed.innerText = "SE CONNECTER";
-            btnProceed.classList.remove('btn-pay');
-            
-            btnProceed.onclick = () => {
-                const currentUrl = encodeURIComponent(window.location.href);
-                window.location.href = `login.html?redirect_to=${currentUrl}`;
-            };
-            return;
-        }
+		if (!activeUser) {
+			statusText.innerText = "❌ Connexion requise pour finaliser l'achat.";
+			btnProceed.disabled = false;
+			btnProceed.innerText = "SE CONNECTER";
+			btnProceed.classList.remove('btn-pay');
+			
+			btnProceed.onclick = () => {
+				const currentUrl = encodeURIComponent(window.location.href);
+				window.location.href = `login.html?redirect_to=${currentUrl}`;
+			};
+			return;
+		}
 
-        // -------------------------------------------------------------
-        // 3. RECUPERATION DU PRODUIT
-        // -------------------------------------------------------------
-        console.log("Recherche du PriceID:", priceId);
-        const { data: product, error } = await supabaseClient
-            .from('store_products')
-            .select('*')
-            .eq('price_id', priceId)
-            .single();
+		// -------------------------------------------------------------
+		// 3. RECUPERATION DU PRODUIT
+		// -------------------------------------------------------------
+		console.log("Recherche du PriceID:", priceId);
+		const { data: product, error } = await supabaseClient
+			.from('store_products')
+			.select('*')
+			.eq('price_id', priceId)
+			.single();
 
-        if (error || !product) {
-            console.error("Erreur Supabase:", error);
-            statusText.innerText = "Produit introuvable dans store_products.";
-            return;
-        }
+		if (error || !product) {
+			console.error("Erreur Supabase:", error);
+			statusText.innerText = "Produit introuvable dans store_products.";
+			return;
+		}
 
-        // Affichage des informations du produit
-        document.getElementById('product-name').innerText = product.name || "Achat In-Game";
-        document.getElementById('price-display').innerText = `ID: ${priceId}`;
-        
-        const visualUrl = product.image_url || "https://via.placeholder.com/400x250?text=Aksess+Store";
-        
-        if (product.animation_url) {
-            document.getElementById('visual-container').innerHTML = `<video src="${product.animation_url}" autoplay loop muted></video>`;
-        } else {
-            document.getElementById('visual-container').innerHTML = `<img src="${visualUrl}" alt="Aperçu">`;
-        }
+		// Affichage des informations du produit
+		document.getElementById('product-name').innerText = product.name || "Achat In-Game";
+		document.getElementById('price-display').innerText = `ID: ${priceId}`;
+		
+		const visualUrl = product.image_url || "https://placeholder.com";
+		
+		if (product.animation_url) {
+			document.getElementById('visual-container').innerHTML = `<video src="${product.animation_url}" autoplay loop muted></video>`;
+		} else {
+			document.getElementById('visual-container').innerHTML = `<img src="${visualUrl}" alt="Aperçu">`;
+		}
 
-        // Initialisation de Paddle
-        Paddle.Environment.set(PADDLE_ENV);
-        Paddle.Initialize({ token: PADDLE_CLIENT_TOKEN });
+		// Initialisation de Paddle
+		Paddle.Environment.set(PADDLE_ENV);
+		Paddle.Initialize({ token: PADDLE_CLIENT_TOKEN });
 
-        btnProceed.disabled = false;
-        statusText.innerText = `Connecté en tant que ${activeUser.display_name || activeUser.email}. Prêt pour le paiement.`;
+		btnProceed.disabled = false;
+		statusText.innerText = `Connecté en tant que ${activeUser.display_name || activeUser.email}. Prêt pour le paiement.`;
 
-        // -------------------------------------------------------------
-        // 4. TRANSACTION ET OUVERTURE DU PAIEMENT
-        // -------------------------------------------------------------
-        btnProceed.onclick = async () => {
-            btnProceed.disabled = true;
-            statusText.innerText = "Génération de la transaction Paddle...";
+		// -------------------------------------------------------------
+		// 4. TRANSACTION ET OUVERTURE DU PAIEMENT
+		// -------------------------------------------------------------
+		btnProceed.onclick = async () => {
+			btnProceed.disabled = true;
+			statusText.innerText = "Génération de la transaction Paddle...";
 
-            try {
-                const { data, error: funcError } = await supabaseClient.functions.invoke("create-checkout", {
-                    body: { 
-                        price_id: priceId,
-                        game_slug: gameSlug,
-                        user_id: activeUser.id,
-                        current_url: window.location.href
-                    }
-                });
+			try {
+				// 🟢 ICI : activeUser.id est maintenant GARANTI d'être celui du jeu Linux (via le token)
+				const { data, error: funcError } = await supabaseClient.functions.invoke("create-checkout", {
+					body: { 
+						price_id: priceId,
+						game_slug: gameSlug,
+						user_id: activeUser.id,
+						current_url: window.location.href
+					}
+				});
 
-                if (funcError || !data.transaction_id) throw new Error("Erreur Backend");
+				if (funcError || !data.transaction_id) throw new Error("Erreur Backend");
 
-                Paddle.Checkout.open({
-                    transactionId: data.transaction_id,
-                    settings: {
-                        displayMode: "overlay",
-                        theme: "dark",
-                        locale: "fr"
-                    },
-                    eventCallback: async function(event) {
-                        if (event.name === "checkout.closed") {
-                            console.log("Fenêtre fermée par l'utilisateur");
-                            await supabaseClient
-                                .from("payment_intents")
-                                .update({ status: "abandoned" })
-                                .eq("paddle_transaction_id", data.transaction_id)
-                                .eq("status", "pending");
-                        }
-                    }
-                });
-                
-                statusText.innerText = "Fenêtre de paiement ouverte.";
-            } catch (err) {
-                alert("Erreur : " + err.message);
-                btnProceed.disabled = false;
-            }
-        };
-    }
+				Paddle.Checkout.open({
+					transactionId: data.transaction_id,
+					settings: {
+						displayMode: "overlay",
+						theme: "dark",
+						locale: "fr"
+					},
+					eventCallback: async function(event) {
+						if (event.name === "checkout.closed") {
+							console.log("Fenêtre fermée par l'utilisateur");
+							await supabaseClient
+								.from("payment_intents")
+								.update({ status: "abandoned" })
+								.eq("paddle_transaction_id", data.transaction_id)
+								.eq("status", "pending");
+						}
+					}
+				});
+				
+				statusText.innerText = "Fenêtre de paiement ouverte.";
+			} catch (err) {
+				alert("Erreur : " + err.message);
+				btnProceed.disabled = false;
+			}
+		};
+	}
+
 
     initCheckout();
 </script>
