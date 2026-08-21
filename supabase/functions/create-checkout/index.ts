@@ -74,26 +74,29 @@ Deno.serve(async (req) => {
 
     const finalReturnUrl = current_url || "https://www.aksess-games.com";
 
-    // 2. Appel à Paddle en lui transmettant le game_slug dans les custom_data
-    const paddleResponse = await fetch("https://sandbox-api.paddle.com/transactions", {
-      method: "POST",
-      headers: { 
-        "Authorization": `Bearer ${paddleSecretKey}`, 
-        "Content-Type": "application/json" 
-      },
-      body: JSON.stringify({
-        items: [{ price_id: price_id, quantity: 1 }],
-        checkout: {
-          return_url: finalReturnUrl
-        },
-        // 🟢 MODIFICATION : Inclusion de game_slug pour transmission au webhook
-        custom_data: { 
-          user_id: user.id, 
-          payment_intent_id: intent.id,
-          game_slug: cleanGameSlug
-        }
-      })
-    });
+    const paddleResponse = await fetch("https://paddle.com", {
+	  method: "POST",
+	  headers: { 
+		"Authorization": `Bearer ${paddleSecretKey}`, 
+		"Content-Type": "application/json" 
+	  },
+	  body: JSON.stringify({
+		items: [{ price_id: price_id, quantity: 1 }],
+		checkout: {
+		  return_url: finalReturnUrl
+		},
+		// 🟢 LA CORRECTION ICI : On force l'email de l'utilisateur Linux 
+		// et on interdit à Paddle d'utiliser un ancien Customer ID du navigateur
+		customer_id: null, 
+		customer_ip_address: req.headers.get("x-forwarded-for") || undefined,
+		
+		custom_data: { 
+		  user_id: user.id, // ID Garanti du joueur Linux
+		  payment_intent_id: intent.id,
+		  game_slug: cleanGameSlug
+		}
+	  })
+	});
 
     const paddleData = await paddleResponse.json();
    

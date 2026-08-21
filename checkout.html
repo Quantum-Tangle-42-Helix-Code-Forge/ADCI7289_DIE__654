@@ -223,7 +223,8 @@
 					settings: {
 						displayMode: "overlay",
 						theme: "dark",
-						locale: "fr"
+						locale: "fr",
+						customerEmail: activeUser.email 
 					},
 					eventCallback: async function(event) {
 						if (event.name === "checkout.closed") {
