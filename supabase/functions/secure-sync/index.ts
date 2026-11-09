@@ -199,6 +199,18 @@ Deno.serve(async (req) => {
       .select('rules')
       .eq('game_slug', game_slug)
       .maybeSingle();
+      
+    // 🚨 Si le jeu n'est pas répertorié dans votre table, on bloque la requête
+    if (!ruleRow) {
+      console.warn(`🚨 Tentative de sauvegarde pour un jeu non répertorié : [${game_slug}]`);
+      return new Response(JSON.stringify({ 
+        error: "Forbidden", 
+        reason: "Ce jeu n'est pas autorisé ou répertorié." 
+      }), { 
+        status: 403, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
 
     if (ruleRow && ruleRow.rules && Array.isArray(ruleRow.rules)) {
       const check = validateDynamicRules(ruleRow.rules, new_data);

@@ -7,15 +7,24 @@ Deno.serve(async (req) => {
 
     if (!signatureHeader) return new Response("No Signature", { status: 401 });
 
-    // 1. VERIFICATION DE LA SIGNATURE
-    const webhookSecret = Deno.env.get("paddle_webhook_secret");
-    if (!webhookSecret) throw new Error("Secret paddle_webhook_secret manquant");
+    // 1. PARSE PRÉVENTIF DU CORPS POUR DÉTECTER L'ENVIRONNEMENT
+    const body = JSON.parse(rawBody);
+    const isSandbox = body.data?.custom_data?.is_sandbox === true;
 
+    // 2. SÉLECTION DYNAMIQUE DU SECRET DE WEBHOOK
+    const webhookSecret = isSandbox 
+      ? Deno.env.get("PADDLE_SANDBOX_WEBHOOK_SECRET") 
+      : Deno.env.get("PADDLE_PRODUCTION_WEBHOOK_SECRET");
+
+    if (!webhookSecret) {
+      throw new Error(`Secret de webhook manquant pour le mode : ${isSandbox ? 'Sandbox' : 'Production'}`);
+    }
+
+    // 3. VÉRIFICATION DE LA SIGNATURE SECURITY
     const parts = Object.fromEntries(signatureHeader.split(";").map(p => p.split("=")));
     const timestamp = parts.ts;
     const receivedHash = parts.h1;
 
-    // Tolérance de 5 minutes (300s)
     if (Math.abs(Math.floor(Date.now() / 1000) - parseInt(timestamp)) > 300) {
       return new Response("Expired", { status: 401 });
     }
@@ -27,8 +36,7 @@ Deno.serve(async (req) => {
 
     if (expectedHash !== receivedHash) return new Response("Invalid Signature", { status: 401 });
 
-    // 2. PARSE ET INFOS DE BASE
-    const body = JSON.parse(rawBody);
+    // 4. INFOS DE BASE APRÈS VALIDATION
     const eventType = body.event_type;
     const data = body.data;
     const intentId = data.custom_data?.payment_intent_id;
@@ -46,7 +54,6 @@ Deno.serve(async (req) => {
     // CAS 1 : TRANSACTION RÉUSSIE (On donne les récompenses)
     if (eventType === "transaction.completed") {
       
-      // Récupérer le produit lié
       const { data: intent, error: intentError } = await supabaseAdmin
         .from('payment_intents')
         .select(`status, store_products(reward_amount, reward_type)`)
@@ -55,7 +62,6 @@ Deno.serve(async (req) => {
       
       if (intentError || !intent.store_products) throw new Error("Product not found");
 
-      // Idempotence : On ne traite que si c'est encore en 'pending'
       const { data: updatedIntent } = await supabaseAdmin
         .from("payment_intents")
         .update({ status: "completed", completed_at: new Date().toISOString() })
@@ -79,9 +85,9 @@ Deno.serve(async (req) => {
         currency: data.currency_code || "USD",
         source: "paddle",
         type: "credit",
-        description: `Achat : ${quantity}x ${reward.reward_type}`,
+        description: `Achat : ${quantity}x ${reward.reward_type} (${isSandbox ? 'TEST' : 'LIVE'})`,
         reference_id: data.id,
-        metadata: { processed: false, reward_type: reward.reward_type }
+        metadata: { processed: false, reward_type: reward.reward_type, is_sandbox: isSandbox }
       });
       if (wErr) console.error("Erreur Wallet:", wErr);
 
@@ -94,7 +100,7 @@ Deno.serve(async (req) => {
       });
       
       if (iErr) console.error("Erreur Items:", iErr);
-      console.log(`✅ Transaction ${data.id} complétée pour l'utilisateur ${userId}`);
+      console.log(`✅ Transaction ${data.id} complétée (${isSandbox ? 'Sandbox' : 'Production'}) pour l'utilisateur ${userId}`);
     }
 
     // CAS 2 : TRANSACTION ANNULÉE
@@ -122,4 +128,4 @@ Deno.serve(async (req) => {
     console.error("💥 CRASH WEBHOOK :", err.message);
     return new Response(err.message, { status: 500 });
   }
-})
+});
