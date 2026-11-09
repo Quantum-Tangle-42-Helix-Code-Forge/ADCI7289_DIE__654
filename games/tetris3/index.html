@@ -330,20 +330,22 @@ const engine = new Engine(GODOT_CONFIG);
 		</script>
 		
 		<script type="module">
+			// ✅ APRÈS (propre et fonctionnel) :
 			import { GameSync } from '../../js/game-sync.js';
-			import { supabaseClient, PADDLE_ENV, PADDLE_CLIENT_TOKEN } from "../../js/config.js?v=1.0.2";
+			import { supabaseClient } from "../../js/config.js?v=1.0.2";
+
 
 
 			// 2. Initialisation Paddle
-			if (window.Paddle) {
-				Paddle.Environment.set(PADDLE_ENV);
-				Paddle.Initialize({ 
-					token: PADDLE_CLIENT_TOKEN,
-					eventCallback: (data) => { if (data.name === "checkout.error") console.error(data.data); }
-				});
-			} else {
-				console.error("❌ Le script Paddle n'a pas pu être chargé (vérifiez le bloquage COEP/Adblock)");
-			}
+			//if (window.Paddle) {
+				//Paddle.Environment.set(PADDLE_ENV);
+				//Paddle.Initialize({ 
+					//token: PADDLE_CLIENT_TOKEN,
+					//eventCallback: (data) => { if (data.name === "checkout.error") console.error(data.data); }
+				//});
+			//} else {
+				//console.error("❌ Le script Paddle n'a pas pu être chargé (vérifiez le bloquage COEP/Adblock)");
+			//}
 
 			// 3. Détermination du Slug (nom du jeu)
 			const pathParts = window.location.pathname.split('/').filter(p => p !== "");
