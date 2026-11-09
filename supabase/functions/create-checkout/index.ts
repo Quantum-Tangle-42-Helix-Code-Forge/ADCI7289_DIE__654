@@ -1,4 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,29 +18,61 @@ Deno.serve(async (req) => {
     }
 
     const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: `Bearer ${token}` } } }
-    );
+    
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
+      return new Response(JSON.stringify({ error: "Variables d'environnement Supabase manquantes." }), { status: 500, headers: corsHeaders });
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, { 
+      global: { headers: { Authorization: `Bearer ${token}` } } 
+    });
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
     }
 
-    // 1. Récupération des paramètres envoyés par le frontend (Ajout de game_slug)
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+    // 1. DÉTECTION DU RÔLE DE L'UTILISATEUR
+    const { data: adminRecord, error: adminError } = await supabaseAdmin
+      .from("admins")
+      .select("user_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (adminError) {
+      console.error("[DATABASE ERROR - ADMINS CHECK]:", adminError.message);
+    }
+
+    const isAdmin = adminRecord !== null;
+
+    // 2. CONFIGURATION DYNAMIQUE DE L'API
+    const paddleApiKey = isAdmin 
+      ? Deno.env.get("PADDLE_SANDBOX_API_KEY") 
+      : Deno.env.get("PADDLE_PRODUCTION_API_KEY");
+      
+    const paddleApiUrl = isAdmin 
+      ? "https://paddle.com" 
+      : "https://paddle.com";
+
+    if (!paddleApiKey) {
+      return new Response(
+        JSON.stringify({ error: `La clé secrète Paddle (API KEY) pour le mode ${isAdmin ? 'Sandbox' : 'Production'} est introuvable.` }),
+        { status: 500, headers: corsHeaders }
+      );
+    }
+
+    // 3. TRAITEMENT DE LA COMMANDE ENTRANTE
     const { price_id, current_url, game_slug } = await req.json();
     if (!price_id) {
       return new Response(JSON.stringify({ error: "Missing price_id" }), { status: 400, headers: corsHeaders });
     }
 
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
-    // Recherche du produit
     const { data: product, error: productError } = await supabaseAdmin
       .from("store_products")
       .select("id")
@@ -48,36 +80,31 @@ Deno.serve(async (req) => {
       .single();
 
     if (productError || !product) {
-      return new Response(JSON.stringify({ error: `Product not found` }), { status: 400, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: `Product not found for price_id: ${price_id}` }), { status: 400, headers: corsHeaders });
     }
 
-    // Définition d'un slug de secours propre si la variable est vide
     const cleanGameSlug = game_slug || "default_game";
 
-    // Insertion de l'intention de paiement (avec game_slug inclus localement)
     const { data: intent, error: intentError } = await supabaseAdmin
       .from("payment_intents")
       .insert([{ 
         user_id: user.id, 
         store_product_id: product.id, 
         paddle_price_id: price_id, 
-        status: "pending",
+        status: "pending"
       }])
       .select()
       .single();
 
-    if (intentError) throw new Error("Intent insertion failed");
+    if (intentError) throw new Error(`Intent insertion failed: ${intentError.message}`);
 
-    const paddleSecretKey = Deno.env.get("PADDLE_API_KEY");
-    if (!paddleSecretKey) throw new Error("Paddle API key is missing on Supabase.");
+    const finalReturnUrl = current_url || "https://aksess-games.com";
 
-    const finalReturnUrl = current_url || "https://www.aksess-games.com";
-
-    // 2. Appel à Paddle en lui transmettant le game_slug dans les custom_data
-    const paddleResponse = await fetch("https://sandbox-api.paddle.com/transactions", {
+    // 4. REQUÊTE VERS PADDLE
+    const paddleResponse = await fetch(paddleApiUrl, {
       method: "POST",
       headers: { 
-        "Authorization": `Bearer ${paddleSecretKey}`, 
+        "Authorization": `Bearer ${paddleApiKey}`,
         "Content-Type": "application/json" 
       },
       body: JSON.stringify({
@@ -85,11 +112,11 @@ Deno.serve(async (req) => {
         checkout: {
           return_url: finalReturnUrl
         },
-        // 🟢 MODIFICATION : Inclusion de game_slug pour transmission au webhook
         custom_data: { 
           user_id: user.id, 
           payment_intent_id: intent.id,
-          game_slug: cleanGameSlug
+          game_slug: cleanGameSlug,
+          is_sandbox: isAdmin
         }
       })
     });
@@ -97,12 +124,14 @@ Deno.serve(async (req) => {
     const paddleData = await paddleResponse.json();
    
     if (!paddleResponse.ok) {
-      console.error("[PADDLE ERROR]", paddleData);
+      console.error("[PADDLE API REJECTION]:", paddleData);
       await supabaseAdmin.from("payment_intents").update({ status: "error" }).eq("id", intent.id);
-      throw new Error(paddleData.error?.detail || "Paddle API Error");
+      return new Response(
+        JSON.stringify({ error: paddleData.error?.detail || "Erreur API Paddle" }),
+        { status: 400, headers: corsHeaders }
+      );
     }
     
-    // Sauvegarder les informations Paddle dans payment_intents
     const { error: updateError } = await supabaseAdmin
       .from("payment_intents")
       .update({
@@ -113,21 +142,25 @@ Deno.serve(async (req) => {
       })
       .eq("id", intent.id);
 
-    if (updateError) {
-      throw updateError;
-    }
+    if (updateError) throw updateError;
+
+    // 5. EXPÉDITION DES LIENS ET TOKENS CLIENTS
+    const paddleClientToken = isAdmin 
+      ? Deno.env.get("PADDLE_SANDBOX_CLIENT_TOKEN") 
+      : Deno.env.get("PADDLE_PRODUCTION_CLIENT_TOKEN");
 
     return new Response(
       JSON.stringify({ 
         transaction_id: paddleData.data.id,
-        checkout_url: paddleData.data.checkout?.url 
+        checkout_url: paddleData.data.checkout?.url,
+        paddle_client_token: paddleClientToken 
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (err) {
     return new Response(
-      JSON.stringify({ error: String(err.message || err) }),
+      JSON.stringify({ error: "Internal Server Error", details: String(err.message || err) }),
       { status: 500, headers: corsHeaders }
     );
   }
