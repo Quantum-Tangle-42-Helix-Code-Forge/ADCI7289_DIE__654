@@ -13,8 +13,8 @@
         .base_widget { background: #1b1b1b; padding: 30px; border-radius: 8px; border: 1px solid #333; }
         .input_row { margin-bottom: 20px; }
         label { display: block; margin-bottom: 8px; color: #888; font-weight: bold; font-size: 14px; }
-        input, textarea { width: 100%; background: #111; border: 1px solid #444; padding: 12px; color: white; border-radius: 4px; box-sizing: border-box; }
-        .button.fat { background: #fa5c5c; color: white; border: none; padding: 15px; width: 100%; border-radius: 4px; font-weight: 900; cursor: pointer; font-size: 16px; }
+        input, textarea, select { width: 100%; background: #111; border: 1px solid #444; padding: 12px; color: white; border-radius: 4px; box-sizing: border-box; }
+        .button.fat { background: #fa5c5c; color: white; border: none; padding: 15px; width: 100%; border-radius: 4px; font-weight: 900; cursor: pointer; font-size: 16px; margin-top: 15px; }
     </style>
 </head>
 <body>
@@ -36,19 +36,27 @@
                             <label>Short Tagline</label>
                             <input type="text" id="short_text" placeholder="Action, RPG, WebGL...">
                         </div>
+                        <!-- NOUVEAU : Statut du jeu -->
+                        <div class="input_row">
+                            <label style="color: #fa5c5c;">Statut de publication</label>
+                            <select id="is_test" style="border-color: #fa5c5c;">
+                                <option value="true" selected>🧪 Phase de test (Visible UNIQUEMENT par les Admins)</option>
+                                <option value="false">🚀 Terminé / En ligne (Visible par le Public)</option>
+                            </select>
+                        </div>
                     </div>
                     <div>
-						<div class="input_row">
-							<label class="label">Genre</label>
-							<select id="genre" style="width:100%; background:#111; color:white; border:1px solid #444; padding:12px; border-radius:4px;">
-								<option value="Action">Action</option>
-								<option value="Aventure">Aventure</option>
-								<option value="RPG">RPG</option>
-								<option value="Puzzle">Puzzle</option>
-								<option value="Plateforme">Plateforme</option>
-								<option value="Autre">Autre</option>
-							</select>
-						</div>
+                        <div class="input_row">
+                            <label>Genre</label>
+                            <select id="genre">
+                                <option value="Action">Action</option>
+                                <option value="Aventure">Aventure</option>
+                                <option value="RPG">RPG</option>
+                                <option value="Puzzle">Puzzle</option>
+                                <option value="Plateforme">Plateforme</option>
+                                <option value="Autre">Autre</option>
+                            </select>
+                        </div>
                         <div class="input_row">
                             <label>Cover Image</label>
                             <input type="file" id="coverFile" accept="image/*" required>
@@ -67,38 +75,23 @@
             </form>
         </div>
     </div>
-    <footer class="footer">
-		<div style="margin-bottom: 10px; color: var(--Aks6_body_color);">
-			© 2026 <strong>Sekhmetis</strong> - Tous droits réservés.
-		</div>
-		<div style="display: flex; justify-content: center; gap: 20px;">
-			<a href="legal_pages.html#confidentialite" style="text-decoration: none; font-size: 12px;">Politique de Confidentialité</a>
-			<a href="legal_pages.html#apropos" style="text-decoration: none; font-size: 12px;">À Propos</a>
-			<a href="legal_pages.html#contact" style="text-decoration: none; font-size: 12px;">Contact</a>
-		</div>
-		<a href="#" onclick="googlefc.showRevocationMessage(); return false;" style="text-decoration: none; font-size: 12px;">Gestion des cookies</a>
-
-    </footer>
 
     <script type="module">
         import { SUPABASE_URL, SUPABASE_KEY, CLOUDINARY_URL, CLOUDINARY_PRESET } from './js/config.js';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // 1. Vérification immédiate de l'accès Admin
         async function checkAdminAccess() {
             const { data: { user } } = await supabase.auth.getUser();
-            
             if (!user) {
                 window.location.href = "login.html";
                 return;
             }
 
-            // Vérification dans la table 'admins' (plus sécurisé que l'email en dur)
             const { data: adminData, error } = await supabase
                 .from('admins')
                 .select('user_id')
                 .eq('user_id', user.id)
-                .single();
+                .maybeSingle();
 
             if (error || !adminData) {
                 alert("Accès refusé : vous n'êtes pas administrateur.");
@@ -106,10 +99,8 @@
             }
         }
         
-        // Exécuter la vérification
         checkAdminAccess();
 
-        // 2. Gestion de l'envoi du formulaire
         document.getElementById('uploadForm').onsubmit = async (e) => {
             e.preventDefault();
             const btn = document.getElementById('btn');
@@ -125,26 +116,29 @@
 
                 const res = await fetch(CLOUDINARY_URL, { method: 'POST', body: formData });
                 const json = await res.json();
-                if(!json.secure_url) throw new Error("Image upload failed");
+                if (!json.secure_url) throw new Error("Image upload failed");
 
-                // B. Data vers Supabase
+                // B. Data vers Supabase avec is_test
+                const isTestValue = document.getElementById('is_test').value === 'true';
+
                 const { error } = await supabase.from('games').insert([{
-					title: document.getElementById('title').value,
-					slug: document.getElementById('slug').value.toLowerCase().trim().replace(/\s+/g, '-'),
-					description: document.getElementById('description').value,
-					short_text: document.getElementById('short_text').value,
-					genre: document.getElementById('genre').value, // AJOUTÉ ICI
-					price: parseFloat(document.getElementById('price').value),
-					cover_image: json.secure_url
-				}]);
+                    title: document.getElementById('title').value,
+                    slug: document.getElementById('slug').value.toLowerCase().trim().replace(/\s+/g, '-'),
+                    description: document.getElementById('description').value,
+                    short_text: document.getElementById('short_text').value,
+                    genre: document.getElementById('genre').value,
+                    price: parseFloat(document.getElementById('price').value),
+                    cover_image: json.secure_url,
+                    is_test: isTestValue // <-- Enregistrement du paramètre
+                }]);
 
-                if(error) throw error;
-                alert("Réussi ! N'oubliez pas de pousser votre dossier de jeu dans le dossier /games/ sur GitHub.");
+                if (error) throw error;
+                alert("Projet enregistré !");
                 window.location.href = "index.html";
             } catch (err) {
                 alert(err.message);
                 btn.disabled = false;
-                btn.innerText = "SAVE PROJECT";
+                btn.innerText = "SAVE PROJECT TO DATABASE";
             }
         };
     </script>
