@@ -3,129 +3,94 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="google-adsense-account" content="ca-pub-4741766423982776">
-    <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;0,900;1,400&display=swap" rel="stylesheet">
-    <title>Parcourir les jeux - aks6.com</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        :root {
-            --Aks6_white_back: #141414;
-            --Aks6_border_color: #333333;
-            --Aks6_link_color: #fa5c5c;
-        }
-        body { background-color: var(--Aks6_white_back); color: #e2e2e2; margin: 0; font-family: Lato, sans-serif; }
-        .header_spacer { height: 50px; }
-        .primary_header {
-            background-color: #1b1b1b;
-            border-bottom: 1px solid var(--Aks6_border_color);
-            display: flex; align-items: center; height: 50px; padding: 0 20px;
-            position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
-        }
-        .header_logo { color: #fa5c5c; text-decoration: none; font-weight: 900; font-size: 22px; margin-right: 25px; }
-        .inner_column { max-width: 1200px; margin: 0 auto; padding: 20px; }
-
-        /* BARRE DE RECHERCHE ET FILTRES */
-        .filter_section {
-            background: #1b1b1b;
-            padding: 25px;
-            border-radius: 8px;
-            border: 1px solid #333;
-            margin-bottom: 30px;
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 20px;
-        }
-        .search_group, .filter_group { display: flex; flex-direction: column; gap: 8px; }
-        .label_small { font-size: 12px; color: #888; font-weight: bold; text-transform: uppercase; }
-        .filter_input {
-            background: #111;
-            border: 1px solid #444;
-            color: white;
-            padding: 12px;
-            border-radius: 4px;
-            font-size: 15px;
-            outline: none;
-        }
-        .filter_input:focus { border-color: #fa5c5c; }
-
-        /* GRILLE */
-        .game_grid_widget {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 20px;
-        }
-        .game_cell { background: #1b1b1b; border-radius: 4px; overflow: hidden; border: 1px solid #333; transition: transform 0.2s; }
-        .game_cell:hover { transform: translateY(-5px); }
-        .game_cell img { width: 100%; aspect-ratio: 315/250; object-fit: cover; display: block; }
-        .game_cell .label { padding: 15px; }
-        .genre_tag { font-size: 10px; color: #fa5c5c; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; display: block; }
-        .price_tag { float: right; background: #fa5c5c; padding: 2px 6px; border-radius: 3px; font-weight: bold; color: white; font-size: 12px; }
-        .title_link { color: white; font-weight: bold; text-decoration: none; font-size: 16px; }
-    </style>
+    <meta name="description" content="Parcourez notre catalogue complet de jeux vidéo en ligne sur aks6.ink : action, aventure, puzzle, et jeux rétro.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="main.css">
+    <title>Parcourir les jeux - aks6.ink</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 </head>
 <body>
     <div class="header_spacer"></div>
-    <div class="primary_header">
-        <a class="header_logo" href="index.html">aks6.com</a>
-    </div>
+    <header class="primary_header">
+        <a class="header_logo" href="index.html">aks6.ink</a>
+        <div class="header_buttons">
+            <a class="header_button" href="browse.html" style="color:white;">Parcourir</a>
+        </div>
+        <div class="user_panel_widget">
+            <a href="index.html" class="panel_button">Accueil</a>
+        </div>
+    </header>
 
-    <div class="main inner_column">
-        <!-- Section des filtres -->
-        <div class="filter_section">
-            <div class="search_group">
-                <span class="label_small">Recherche Globale (Titre, Tags, Genre)</span>
-                <input type="text" id="universal-search" class="filter_input" placeholder="Ex: Action, Tetris, Puzzle...">
-            </div>
-            <div class="filter_group">
-                <span class="label_small">Filtrer par Genre</span>
-                <select id="genre-select" class="filter_input">
-                    <option value="">Tous les genres</option>
-                    <option value="Action">Action</option>
-                    <option value="Aventure">Aventure</option>
-                    <option value="RPG">RPG</option>
-                    <option value="Puzzle">Puzzle</option>
-                    <option value="Plateforme">Plateforme</option>
-                    <option value="Autre">Autre</option>
-                </select>
+    <main class="inner_column">
+        <div class="base_widget" style="margin-bottom: 25px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                <div>
+                    <label for="universal-search">Recherche par titre, tag</label>
+                    <input type="text" id="universal-search" placeholder="Ex: Tetris, Action...">
+                </div>
+                <div>
+                    <label for="genre-select">Filtrer par Genre</label>
+                    <select id="genre-select">
+                        <option value="">Tous les genres</option>
+                        <option value="Action">Action</option>
+                        <option value="Aventure">Aventure</option>
+                        <option value="RPG">RPG</option>
+                        <option value="Puzzle">Puzzle</option>
+                        <option value="Plateforme">Plateforme</option>
+                        <option value="Autre">Autre</option>
+                    </select>
+                </div>
             </div>
         </div>
 
-        <h2 id="result-title" style="margin-bottom: 20px;">Tous les jeux</h2>
+        <h1 id="result-title" style="font-size: 24px; margin-bottom: 16px;">Tous les jeux</h1>
         
         <div id="game-grid" class="game_grid_widget">
-            <!-- Injecté par JS -->
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
         </div>
-    </div>
+    </main>
+
     <footer class="footer">
-		<div style="margin-bottom: 10px; color: var(--Aks6_body_color);">
-			© 2026 <strong>Sekhmetis</strong> - Tous droits réservés.
-		</div>
-		<div style="display: flex; justify-content: center; gap: 20px;">
-			<a href="legal_pages.html#confidentialite" style="text-decoration: none; font-size: 12px;">Politique de Confidentialité</a>
-			<a href="legal_pages.html#apropos" style="text-decoration: none; font-size: 12px;">À Propos</a>
-			<a href="legal_pages.html#contact" style="text-decoration: none; font-size: 12px;">Contact</a>
-		</div>
-		<a href="#" onclick="googlefc.showRevocationMessage(); return false;" style="text-decoration: none; font-size: 12px;">Gestion des cookies</a>
+        <div class="footer_copy">
+            © 2026 <strong>Sekhmetis</strong> - Tous droits réservés.
+        </div>
+        <div class="footer_links">
+            <a href="legal_pages.html#confidentialite">Politique de Confidentialité</a>
+            <a href="legal_pages.html#apropos">À Propos</a>
+            <a href="legal_pages.html#contact">Contact</a>
+        </div>
+        <a href="#" onclick="if(window.googlefc) googlefc.showRevocationMessage(); return false;">Gestion des cookies</a>
     </footer>
 
     <script type="module">
         import { SUPABASE_URL, SUPABASE_KEY } from './js/config.js';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-        const searchInput = document.getElementById('universal-search');
-        const genreSelect = document.getElementById('genre-select');
-        const grid = document.getElementById('game-grid');
-        const resultTitle = document.getElementById('result-title');
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const queryFromHeader = urlParams.get('q');
-        if (queryFromHeader) {
-            searchInput.value = queryFromHeader;
+        
+        function getSupabase() {
+            return new Promise(resolve => {
+                const check = () => {
+                    if (window.supabase) resolve(window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY));
+                    else setTimeout(check, 50);
+                };
+                check();
+            });
         }
 
-        // 1. Détection du rôle Admin
-        let isAdmin = false;
-        async function checkRole() {
+        async function init() {
+            const supabase = await getSupabase();
+            const searchInput = document.getElementById('universal-search');
+            const genreSelect = document.getElementById('genre-select');
+            const grid = document.getElementById('game-grid');
+            const resultTitle = document.getElementById('result-title');
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const queryFromHeader = urlParams.get('q');
+            if (queryFromHeader) searchInput.value = queryFromHeader;
+
+            let isAdmin = false;
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
                 const { data: adminData } = await supabase
@@ -135,63 +100,54 @@
                     .maybeSingle();
                 isAdmin = adminData !== null;
             }
+
+            async function updateSearch() {
+                const text = searchInput.value.trim();
+                const genre = genreSelect.value;
+
+                let dbQuery = supabase
+                    .from('games')
+                    .select('*')
+                    .eq('is_test', isAdmin);
+
+                if (text) {
+                    dbQuery = dbQuery.or(`title.ilike.%${text}%,short_text.ilike.%${text}%,genre.ilike.%${text}%`);
+                    resultTitle.innerText = `Résultats pour "${text}"`;
+                } else {
+                    resultTitle.innerText = isAdmin ? "🧪 Tous les jeux en test (Admin)" : "Tous les jeux";
+                }
+
+                if (genre) dbQuery = dbQuery.eq('genre', genre);
+
+                const { data: games, error } = await dbQuery.order('created_at', { ascending: false });
+
+                if (error || !games || games.length === 0) {
+                    grid.innerHTML = "<p style='grid-column: 1/-1; text-align: center; color: var(--text-muted);'>Aucun jeu ne correspond à votre recherche.</p>";
+                    return;
+                }
+
+                grid.innerHTML = games.map(game => `
+                    <article class="game_cell">
+                        <div class="bordered">
+                            <a href="game.html?slug=${game.slug}">
+                                <img src="${game.cover_image}" alt="Aperçu de ${game.title}" width="315" height="200" loading="lazy">
+                            </a>
+                        </div>
+                        <div class="label">
+                            <span class="price_tag">${game.price == 0 ? 'Gratuit' : game.price + ' $'}</span>
+                            <a href="game.html?slug=${game.slug}" class="title">${game.title}</a>
+                            <div class="sub">${game.short_text || ''}</div>
+                        </div>
+                    </article>
+                `).join('');
+            }
+
+            searchInput.addEventListener('input', updateSearch);
+            genreSelect.addEventListener('change', updateSearch);
             updateSearch();
         }
 
-        async function updateSearch() {
-            const text = searchInput.value.trim();
-            const genre = genreSelect.value;
-
-            // Filtrage strict : les admins voient is_test = true, le public voit is_test = false
-            let dbQuery = supabase
-                .from('games')
-                .select('*')
-                .eq('is_test', isAdmin);
-
-            if (text) {
-                dbQuery = dbQuery.or(`title.ilike.%${text}%,short_text.ilike.%${text}%,genre.ilike.%${text}%`);
-                resultTitle.innerText = `Résultats pour "${text}" ${isAdmin ? '(Mode Test)' : ''}`;
-            } else {
-                resultTitle.innerText = isAdmin ? "🧪 Tous les jeux en test (Admin)" : "Tous les jeux";
-            }
-
-            if (genre) {
-                dbQuery = dbQuery.eq('genre', genre);
-            }
-
-            const { data: games, error } = await dbQuery.order('created_at', { ascending: false });
-
-            if (error) {
-                console.error(error);
-                return;
-            }
-
-            if (games.length === 0) {
-                grid.innerHTML = "<p style='grid-column: 1/-1; text-align: center; padding: 50px; color: #555;'>Aucun jeu ne correspond à votre recherche.</p>";
-                return;
-            }
-
-            grid.innerHTML = games.map(game => `
-                <div class="game_cell">
-                    <a href="game.html?slug=${game.slug}">
-                        <img src="${game.cover_image}" alt="${game.title}">
-                    </a>
-                    <div class="label">
-                        ${game.is_test ? '<span style="background:#fa5c5c; color:white; font-size:10px; padding:2px 5px; border-radius:3px; font-weight:bold; margin-right:5px;">TEST</span>' : ''}
-                        <span class="genre_tag">${game.genre || 'Jeu'}</span>
-                        <span class="price_tag">${game.price} $</span>
-                        <a href="game.html?slug=${game.slug}" class="title_link">${game.title}</a>
-                        <div style="color: #888; font-size: 13px; margin-top: 5px;">${game.short_text || ''}</div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        searchInput.addEventListener('input', updateSearch);
-        genreSelect.addEventListener('change', updateSearch);
-
-        // Lancement après détection admin
-        checkRole();
+        window.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>

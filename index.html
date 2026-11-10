@@ -3,114 +3,84 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;0,900;1,400&display=swap" rel="stylesheet">
-    <title>aks6.ink - Accueil</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <meta name="description" content="Jouez aux meilleurs jeux vidéo indépendants en ligne gratuitement sur aks6.ink. Découvrez notre catalogue de jeux d'arcade, puzzles et aventures.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="main.css">
+    <title>aks6.ink - Plateforme de Jeux Vidéo Indépendants</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
     <meta name="google-adsense-account" content="ca-pub-4741766423982776">
-    <style>
-        /* DESIGN SOURCE DE VOTRE HEADER */
-        :root {
-            --Aks6_white_back: #141414;
-            --Aks6_gray_back: #1f1f1f;
-            --Aks6_body_color: #e2e2e2;
-            --Aks6_border_color: #333333;
-            --Aks6_link_color: #fa5c5c;
-        }
-        body { background-color: var(--Aks6_white_back) !important; color: var(--Aks6_body_color) !important; margin: 0; font-family: Lato, sans-serif; }
-        
-        .header_widget .primary_header {
-            background-color: #1b1b1b !important;
-            border-bottom: 1px solid var(--Aks6_border_color);
-            display: flex; align-items: center; height: 50px; padding: 0 20px;
-            position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
-        }
-        .header_spacer { height: 50px; }
-        .header_logo { color: #fa5c5c !important; text-decoration: none; font-weight: 900; font-size: 22px; margin-right: 25px; }
-        .header_buttons { display: flex; gap: 15px; }
-        .header_button { color: #aaaaaa !important; text-decoration: none; font-size: 14px; font-weight: bold; }
-        
-        /* BARRE DE RECHERCHE */
-        .game_search { flex: 1; max-width: 400px; margin-left: 20px; }
-        .search_input { width: 100%; background: #111 !important; border: 1px solid #333 !important; border-radius: 3px; padding: 6px 10px; color: white; font-size: 13px; }
-        
-        /* PANEL UTILISATEUR */
-        .user_panel_widget { margin-left: auto; display: flex; align-items: center; gap: 12px; }
-        .panel_button { color: #e2e2e2 !important; text-decoration: none; font-size: 14px; font-weight: bold; padding: 5px 12px; border-radius: 3px; border: 1px solid #444; background: transparent; cursor: pointer; }
-        .register_button { background-color: #fa5c5c !important; border-color: #fa5c5c !important; color: white !important; }
-
-        .inner_column { max-width: 1200px; margin: 0 auto; padding: 20px; }
-
-        /* GRILLE DE JEUX */
-        .game_grid_widget {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-        }
-        .game_cell { background: #1b1b1b; border-radius: 4px; overflow: hidden; transition: transform 0.2s; border: 1px solid #333; }
-        .game_cell:hover { transform: translateY(-5px); }
-        .game_cell .bordered { aspect-ratio: 315 / 250; background: #000; overflow: hidden; }
-        .game_cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .game_cell .label { padding: 15px; }
-        .price_tag { float: right; background: #fa5c5c; padding: 2px 6px; border-radius: 3px; font-weight: bold; color: white; font-size: 12px; }
-        .title { color: white; font-weight: bold; text-decoration: none; font-size: 16px; display: block; margin-bottom: 5px; }
-        .sub { color: #888; font-size: 13px; }
-        
-        .footer { text-align: center; padding: 40px 0; color: #555; font-size: 14px; border-top: 1px solid #333; margin-top: 50px; }
-    </style>
 </head>
 <body>
     <div class="header_spacer"></div>
-    <div class="header_widget">
-        <div class="primary_header">
-            <a class="header_logo" href="index.html">aks6.ink</a>
-            <div class="header_buttons">
-                <a class="header_button" href="browse.html">Browse Games</a>
-            </div>
-            
-            <!-- RECHERCHE : Envoie vers browse.html?q=... -->
-            <form action="browse.html" method="GET" class="game_search">
-				<input type="text" name="q" class="search_input" placeholder="Rechercher titre, tag, genre...">
-			</form>
-
-
-            <div class="user_panel_widget" id="user-panel">
-                <!-- Rempli par le JavaScript -->
-            </div>
+    <header class="primary_header">
+        <a class="header_logo" href="index.html">aks6.ink</a>
+        <div class="header_buttons">
+            <a class="header_button" href="browse.html">Parcourir</a>
         </div>
-    </div>
+        
+        <form action="browse.html" method="GET" class="game_search" role="search">
+            <input type="text" name="q" class="search_input" placeholder="Rechercher titre, genre..." aria-label="Rechercher des jeux">
+        </form>
 
-    <div class="main inner_column">
-        <div class="browse_header" style="padding: 20px 0;">
-            <h2 style="font-size: 24px;">
-                <span>Derniers</span> <span>Jeux</span>
-                <span id="game-count" style="font-weight: normal; color: #777;"></span>
-            </h2>
+        <div class="user_panel_widget" id="user-panel">
+            <a href="login.html" class="panel_button">Connexion</a>
+            <a href="register.html" class="panel_button register_button">S'inscrire</a>
+        </div>
+    </header>
+
+    <main class="inner_column">
+        <div style="padding: 15px 0;">
+            <h1 style="font-size: 26px; margin: 0;">
+                Derniers Jeux Vidéo
+                <span id="game-count" style="font-size: 16px; font-weight: normal; color: var(--text-muted);"></span>
+            </h1>
         </div>
 
         <div id="game-grid" class="game_grid_widget">
-            <p>Chargement des jeux...</p>
+            <!-- Skeleton de réservation pour éliminer le CLS -->
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
         </div>
-    </div>
+    </main>
 
     <footer class="footer">
-		<div style="margin-bottom: 10px; color: var(--Aks6_body_color);">
-			© 2026 <strong>Sekhmetis</strong> - Tous droits réservés.
-		</div>
-		<div style="display: flex; justify-content: center; gap: 20px;">
-			<a href="legal_pages.html#confidentialite" style="text-decoration: none; font-size: 12px;">Politique de Confidentialité</a>
-			<a href="legal_pages.html#apropos" style="text-decoration: none; font-size: 12px;">À Propos</a>
-			<a href="legal_pages.html#contact" style="text-decoration: none; font-size: 12px;">Contact</a>
-		</div>
-		<a href="#" onclick="googlefc.showRevocationMessage(); return false;" style="text-decoration: none; font-size: 12px;">Gestion des cookies</a>
+        <div class="footer_copy">
+            © 2026 <strong>Sekhmetis</strong> - Tous droits réservés.
+        </div>
+        <div class="footer_links">
+            <a href="legal_pages.html#confidentialite">Politique de Confidentialité</a>
+            <a href="legal_pages.html#apropos">À Propos</a>
+            <a href="legal_pages.html#contact">Contact</a>
+        </div>
+        <a href="#" onclick="if(window.googlefc) googlefc.showRevocationMessage(); return false;">Gestion des cookies</a>
     </footer>
 
     <script type="module">
         import { SUPABASE_URL, SUPABASE_KEY } from './js/config.js';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // Attente de Supabase si chargé via defer
+        function getSupabase() {
+            if (window.supabase) {
+                return window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            }
+            return new Promise(resolve => {
+                const interval = setInterval(() => {
+                    if (window.supabase) {
+                        clearInterval(interval);
+                        resolve(window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY));
+                    }
+                }, 50);
+            });
+        }
 
         async function init() {
-            // 1. DÉTECTION DU RÔLE ADMIN
+            const supabase = await getSupabase();
+
+            // 1. Détection Session & Rôle Admin
             const { data: { user } } = await supabase.auth.getUser();
             const panel = document.getElementById('user-panel');
             let isAdmin = false;
@@ -126,73 +96,53 @@
 
                 panel.innerHTML = `
                     <a href="user_account.html" class="panel_button">${user.user_metadata?.display_name || 'Compte'}</a>
-                    ${isAdmin ? '<a href="upload.html" class="panel_button" style="color:#fa5c5c; border-color:#fa5c5c;">Upload</a>' : ''}
-                    <button id="logout-btn" class="panel_button" style="background:none; cursor:pointer;">Log out</button>
+                    ${isAdmin ? '<a href="upload.html" class="panel_button" style="color:var(--accent-light); border-color:var(--accent-light);">Ajouter</a>' : ''}
+                    <button id="logout-btn" class="panel_button">Déconnexion</button>
                 `;
 
                 document.getElementById('logout-btn').onclick = async () => {
                     await supabase.auth.signOut();
                     window.location.reload();
                 };
-            } else {
-                panel.innerHTML = `
-                    <a href="login.html" class="panel_button">Log in</a>
-                    <a href="register.html" class="panel_button register_button">Register</a>
-                `;
             }
 
-            // 2. INDICATEUR VISUEL DANS LE TITRE
-            const titleSpan = document.querySelector('.browse_header h2');
-            if (isAdmin) {
-                titleSpan.innerHTML = `
-                    <span style="color:#fa5c5c;">🧪 Jeux en Phase de Test (Admin)</span>
-                    <span id="game-count" style="font-weight: normal; color: #777;"></span>
-                `;
-            }
-
-            // 3. CHARGEMENT FILTRÉ DES JEUX
-            // Si admin -> is_test = true
-            // Si joueur classique / déconnecté -> is_test = false
+            // 2. Chargement des jeux
             const { data: games, error } = await supabase
                 .from('games')
                 .select('*')
                 .eq('is_test', isAdmin)
                 .order('created_at', { ascending: false });
 
-            if (error) {
-                console.error("Erreur:", error);
-                document.getElementById('game-grid').innerHTML = "<p>Erreur lors du chargement des jeux.</p>";
+            const grid = document.getElementById('game-grid');
+            if (error || !games) {
+                grid.innerHTML = "<p>Erreur lors du chargement des jeux.</p>";
                 return;
             }
 
-            document.getElementById('game-count').innerText = ` (${games.length} résultats)`;
-            const grid = document.getElementById('game-grid');
+            document.getElementById('game-count').innerText = ` (${games.length})`;
             
             if (games.length === 0) {
-                grid.innerHTML = isAdmin 
-                    ? "<p style='color:#fa5c5c;'>Aucun jeu en phase de test actuellement.</p>" 
-                    : "<p>Aucun jeu disponible pour le moment.</p>";
+                grid.innerHTML = "<p style='grid-column: 1/-1; text-align: center;'>Aucun jeu disponible pour le moment.</p>";
                 return;
             }
 
             grid.innerHTML = games.map(game => `
-                <div class="game_cell">
+                <article class="game_cell">
                     <div class="bordered">
-                        <a href="game.html?slug=${game.slug}">
-                            <img src="${game.cover_image}" alt="${game.title}">
+                        <a href="game.html?slug=${game.slug}" aria-label="Jouer à ${game.title}">
+                            <img src="${game.cover_image}" alt="Aperçu du jeu ${game.title}" width="315" height="200" loading="lazy">
                         </a>
                     </div>
                     <div class="label">
-                        ${game.is_test ? '<span style="background:#fa5c5c; color:white; font-size:10px; padding:2px 5px; border-radius:3px; font-weight:bold; margin-right:5px;">TEST</span>' : ''}
-                        <span class="price_tag">${game.price} $</span>
+                        <span class="price_tag">${game.price == 0 ? 'Gratuit' : game.price + ' $'}</span>
                         <a class="title" href="game.html?slug=${game.slug}">${game.title}</a>
                         <div class="sub">${game.short_text || ''}</div>
                     </div>
-                </div>
+                </article>
             `).join('');
         }
 
-        init();
+        window.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>

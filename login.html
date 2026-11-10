@@ -3,170 +3,102 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;0,900;1,400&display=swap" rel="stylesheet">
-    <title>Log in - aks6.ink</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <meta name="google-adsense-account" content="ca-pub-4741766423982776">
-    <style>
-        :root {
-            --Aks6_white_back: #141414;
-            --Aks6_gray_back: #1f1f1f;
-            --Aks6_body_color: #e2e2e2;
-            --Aks6_border_color: #333333;
-            --Aks6_link_color: #fa5c5c;
-        }
-        body { background-color: var(--Aks6_white_back); color: var(--Aks6_body_color); margin: 0; font-family: Lato, sans-serif; }
-        
-        /* HEADER STYLE */
-        .primary_header {
-            background-color: #1b1b1b;
-            border-bottom: 1px solid var(--Aks6_border_color);
-            display: flex; align-items: center; height: 50px; padding: 0 20px;
-            position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
-        }
-        .header_spacer { height: 50px; }
-        .header_logo { color: #fa5c5c; text-decoration: none; font-weight: 900; font-size: 22px; }
-
-        /* FORM STYLE */
-        .main { padding-top: 50px; }
-        .inner_column.compressed_column { max-width: 400px; margin: 0 auto; padding: 20px; }
-        .base_widget { background: #1b1b1b; border: 1px solid #333; border-radius: 4px; padding: 25px; }
-        
-        .stat_header_widget h2 { margin-top: 0; font-size: 20px; border-bottom: 1px solid #333; padding-bottom: 15px; margin-bottom: 20px; }
-        
-        .input_row { margin-bottom: 15px; }
-        .label { display: block; margin-bottom: 5px; font-weight: bold; color: #888; font-size: 14px; }
-        input { 
-            width: 100%; background: #111; border: 1px solid #444; padding: 10px; 
-            color: white; border-radius: 3px; box-sizing: border-box; 
-        }
-        input:focus { border-color: #fa5c5c; outline: none; }
-        
-        .button { 
-            background: #fa5c5c; color: white; border: none; padding: 12px; 
-            border-radius: 3px; font-weight: bold; cursor: pointer; width: 100%; 
-            font-size: 16px; transition: background 0.2s;
-        }
-        .button:hover { background: #ff6b6b; }
-
-        #error-msg { 
-            color: #fa5c5c; background: rgba(250,92,92,0.1); padding: 10px; 
-            border-radius: 4px; display: none; margin-bottom: 20px; font-size: 14px;
-            border: 1px solid rgba(250,92,92,0.2);
-        }
-
-        .footer_links { text-align: center; margin-top: 20px; font-size: 14px; color: #777; }
-        .footer_links a { color: #fa5c5c; text-decoration: none; }
-    </style>
+    <meta name="description" content="Connectez-vous à votre compte aks6.ink pour gérer vos jeux et sauvegardes.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="main.css">
+    <title>Connexion - aks6.ink</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 </head>
 <body>
     <div class="header_spacer"></div>
-    <div class="header_widget">
-        <div class="primary_header">
-            <a class="header_logo" href="index.html">aks6.ink</a>
+    <header class="primary_header">
+        <a class="header_logo" href="index.html">aks6.ink</a>
+        <div class="header_buttons">
+            <a class="header_button" href="browse.html">Parcourir</a>
         </div>
-    </div>
+    </header>
 
-    <div class="main">
-        <div class="inner_column compressed_column">
-            <div class="user_login_page base_widget">
-                <div class="stat_header_widget"><h2>Log in to aks6.ink</h2></div>
-                <div class="padded">
-                    <!-- Zone d'affichage des erreurs -->
-                    <p id="error-msg"></p>
+    <main class="inner_column compressed_column">
+        <div class="base_widget">
+            <h1 style="margin-top: 0; font-size: 22px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">Connexion à aks6.ink</h1>
+            
+            <p id="error-msg" style="color: var(--accent-light); background: rgba(201, 42, 42, 0.15); padding: 10px; border-radius: 4px; display: none; margin-bottom: 15px; font-size: 14px;"></p>
 
-                    <form id="loginForm">
-                        <div class="input_row">
-                            <label class="label">Email</label>
-                            <input type="email" id="email" required placeholder="votre@email.com">
-                        </div>
-                        <div class="input_row">
-                            <label class="label">Password</label>
-                            <input type="password" id="password" required placeholder="••••••••">
-                        </div>
-                        <button type="submit" id="submit-btn" class="button">Log in</button>
-                    </form>
-
-                    <div class="footer_links">
-                        Pas encore de compte ? <a href="register.html">Create account</a>
-                    </div>
+            <form id="loginForm">
+                <div class="input_row">
+                    <label for="email">Adresse Email</label>
+                    <input type="email" id="email" required placeholder="nom@exemple.com">
                 </div>
+                <div class="input_row">
+                    <label for="password">Mot de passe</label>
+                    <input type="password" id="password" required placeholder="••••••••">
+                </div>
+                <button type="submit" id="submit-btn" class="button" style="width: 100%;">Se connecter</button>
+            </form>
+
+            <div style="text-align: center; margin-top: 20px; font-size: 14px; color: var(--text-muted);">
+                Pas encore de compte ? <a href="register.html" style="color: var(--accent-light); text-decoration: none;">Créer un compte</a>
             </div>
         </div>
-    </div>
+    </main>
+
     <footer class="footer">
-		<div style="margin-bottom: 10px; color: var(--Aks6_body_color);">
-			© 2026 <strong>Sekhmetis</strong> - Tous droits réservés.
-		</div>
-		<div style="display: flex; justify-content: center; gap: 20px;">
-			<a href="legal_pages.html#confidentialite" style="text-decoration: none; font-size: 12px;">Politique de Confidentialité</a>
-			<a href="legal_pages.html#apropos" style="text-decoration: none; font-size: 12px;">À Propos</a>
-			<a href="legal_pages.html#contact" style="text-decoration: none; font-size: 12px;">Contact</a>
-		</div>
-		<a href="#" onclick="googlefc.showRevocationMessage(); return false;" style="text-decoration: none; font-size: 12px;">Gestion des cookies</a>
+        <div class="footer_copy">
+            © 2026 <strong>Sekhmetis</strong> - Tous droits réservés.
+        </div>
+        <div class="footer_links">
+            <a href="legal_pages.html#confidentialite">Politique de Confidentialité</a>
+            <a href="legal_pages.html#apropos">À Propos</a>
+            <a href="legal_pages.html#contact">Contact</a>
+        </div>
+        <a href="#" onclick="if(window.googlefc) googlefc.showRevocationMessage(); return false;">Gestion des cookies</a>
     </footer>
 
     <script type="module">
         import { SUPABASE_URL, SUPABASE_KEY } from './js/config.js';
-        
-        // Initialisation Supabase
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        const loginForm = document.getElementById('loginForm');
-        const errorMsg = document.getElementById('error-msg');
-        const submitBtn = document.getElementById('submit-btn');
-
-        loginForm.onsubmit = async (e) => {
-            e.preventDefault();
-            
-            // UI : Désactiver le bouton pendant le chargement
-            submitBtn.disabled = true;
-            submitBtn.innerText = "Connexion...";
-            errorMsg.style.display = 'none';
-
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-
-            // Appel Supabase Auth
-            const { data, error } = await supabase.auth.signInWithPassword({
-                email: email,
-                password: password,
+        function getSupabase() {
+            return new Promise(resolve => {
+                const check = () => {
+                    if (window.supabase) resolve(window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY));
+                    else setTimeout(check, 50);
+                };
+                check();
             });
-
-            if (error) {
-                // Affichage de l'erreur
-                errorMsg.innerText = "Erreur : " + error.message;
-                errorMsg.style.display = 'block';
-                submitBtn.disabled = false;
-                submitBtn.innerText = "Log in";
-            } else {
-                // Succès : Redirection vers l'accueil
-                const urlParams = new URLSearchParams(window.location.search);
-				const redirectTo = urlParams.get('redirect_to');
-
-				if (redirectTo) {
-					window.location.href = decodeURIComponent(redirectTo);
-				} else {
-					window.location.href = 'index.html';
-				}
-            }
-        };
-
-        // Rediriger si l'utilisateur est déjà connecté
-        async function checkSession() {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                const urlParams = new URLSearchParams(window.location.search);
-				const redirectTo = urlParams.get('redirect_to');
-
-				if (redirectTo) {
-					window.location.href = decodeURIComponent(redirectTo);
-				} else {
-					window.location.href = 'index.html';
-				}
-            }
         }
-        checkSession();
+
+        async function setupAuth() {
+            const supabase = await getSupabase();
+            const loginForm = document.getElementById('loginForm');
+            const errorMsg = document.getElementById('error-msg');
+            const submitBtn = document.getElementById('submit-btn');
+
+            loginForm.onsubmit = async (e) => {
+                e.preventDefault();
+                submitBtn.disabled = true;
+                submitBtn.innerText = "Connexion en cours...";
+                errorMsg.style.display = 'none';
+
+                const { error } = await supabase.auth.signInWithPassword({
+                    email: document.getElementById('email').value,
+                    password: document.getElementById('password').value,
+                });
+
+                if (error) {
+                    errorMsg.innerText = error.message;
+                    errorMsg.style.display = 'block';
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = "Se connecter";
+                } else {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    window.location.href = urlParams.get('redirect_to') || 'index.html';
+                }
+            };
+        }
+
+        window.addEventListener('DOMContentLoaded', setupAuth);
     </script>
 </body>
 </html>

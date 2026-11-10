@@ -3,94 +3,119 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Créez votre compte joueur gratuit sur aks6.ink et accédez à tous nos jeux vidéo indépendants.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="main.css">
+    <title>S'inscrire - aks6.ink</title>
+    <!-- Chargement non bloquant -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
     <meta name="google-adsense-account" content="ca-pub-4741766423982776">
-    <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;0,900;1,400&display=swap" rel="stylesheet">
-    <title>S'inscrire - aks6.com</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        :root { --Aks6_white_back: #141414; --Aks6_body_color: #e2e2e2; --Aks6_link_color: #fa5c5c; }
-        body { background-color: var(--Aks6_white_back); color: var(--Aks6_body_color); margin: 0; font-family: Lato, sans-serif; }
-        .header_spacer { height: 50px; }
-        .primary_header { background-color: #1b1b1b; border-bottom: 1px solid #333; display: flex; align-items: center; height: 50px; padding: 0 20px; position: fixed; top: 0; left: 0; right: 0; z-index: 1000; }
-        .header_logo { color: #fa5c5c; text-decoration: none; font-weight: 900; font-size: 22px; }
-        .base_widget { background: #1b1b1b; border: 1px solid #333; border-radius: 4px; padding: 20px; margin-top: 20px; }
-        .inner_column.compressed_column { max-width: 400px; margin: 0 auto; }
-        .input_row { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; color: #888; }
-        input { width: 100%; background: #111; border: 1px solid #444; padding: 10px; color: white; border-radius: 3px; box-sizing: border-box; }
-        .button { background: #fa5c5c; color: white; border: none; padding: 12px; border-radius: 3px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px; }
-        #error-msg { color: #fa5c5c; background: rgba(250,92,92,0.1); padding: 10px; border-radius: 4px; display: none; margin-bottom: 15px; font-size: 14px; }
-    </style>
 </head>
 <body>
     <div class="header_spacer"></div>
-    <div class="primary_header"><a class="header_logo" href="index.html">aks6.com</a></div>
+    <header class="primary_header">
+        <a class="header_logo" href="index.html">aks6.ink</a>
+        <div class="header_buttons">
+            <a class="header_button" href="browse.html">Parcourir</a>
+        </div>
+        <div class="user_panel_widget">
+            <a href="login.html" class="panel_button">Connexion</a>
+        </div>
+    </header>
 
-    <div class="main">
-        <div class="inner_column compressed_column">
-            <div class="user_register_page base_widget">
-                <div class="stat_header_widget"><h2>Create an account</h2></div>
-                <div class="padded">
-                    <p id="error-msg"></p>
-                    <form id="registerForm">
-                        <div class="input_row">
-                           <label>Username</label>
-                           <input type="text" id="username" required>
-                        </div>
-                        <div class="input_row">
-                           <label>Email</label>
-                           <input type="email" id="email" required>
-                        </div>
-                        <div class="input_row">
-                           <label>Password</label>
-                           <input type="password" id="password" required minlength="6">
-                        </div>
-                        <button type="submit" class="button">Create account</button>
-                    </form>
-                    <p style="text-align: center; margin-top: 15px; font-size: 13px;">
-                        Déjà un compte ? <a href="login.html" style="color: #fa5c5c;">Se connecter</a>
-                    </p>
+    <main class="inner_column compressed_column">
+        <div class="base_widget">
+            <h1 style="margin-top: 0; font-size: 22px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">Créer un compte</h1>
+            
+            <p id="error-msg" style="color: var(--accent-light); background: rgba(201, 42, 42, 0.15); padding: 10px; border-radius: 4px; display: none; margin-bottom: 15px; font-size: 14px;"></p>
+
+            <form id="registerForm">
+                <div class="input_row">
+                    <label for="username">Nom d'utilisateur</label>
+                    <input type="text" id="username" name="username" autocomplete="username" required placeholder="Ex: PseudoGamer">
                 </div>
+                <div class="input_row">
+                    <label for="email">Adresse Email</label>
+                    <input type="email" id="email" name="email" autocomplete="email" required placeholder="nom@exemple.com">
+                </div>
+                <div class="input_row">
+                    <label for="password">Mot de passe (6 caractères min.)</label>
+                    <input type="password" id="password" name="password" autocomplete="new-password" required minlength="6" placeholder="••••••••">
+                </div>
+                <button type="submit" id="submit-btn" class="button" style="width: 100%;">Créer mon compte</button>
+            </form>
+
+            <div style="text-align: center; margin-top: 20px; font-size: 14px; color: var(--text-muted);">
+                Déjà un compte ? <a href="login.html" style="color: var(--accent-light); text-decoration: none;">Se connecter</a>
             </div>
         </div>
-    </div>
+    </main>
+
     <footer class="footer">
-		<div style="margin-bottom: 10px; color: var(--Aks6_body_color);">
-			© 2026 <strong>Sekhmetis</strong> - Tous droits réservés.
-		</div>
-		<div style="display: flex; justify-content: center; gap: 20px;">
-			<a href="legal_pages.html#confidentialite" style="text-decoration: none; font-size: 12px;">Politique de Confidentialité</a>
-			<a href="legal_pages.html#apropos" style="text-decoration: none; font-size: 12px;">À Propos</a>
-			<a href="legal_pages.html#contact" style="text-decoration: none; font-size: 12px;">Contact</a>
-		</div>
-		<a href="#" onclick="googlefc.showRevocationMessage(); return false;" style="text-decoration: none; font-size: 12px;">Gestion des cookies</a>
+        <div class="footer_copy">
+            © 2026 <strong>Sekhmetis</strong> - Tous droits réservés.
+        </div>
+        <div class="footer_links">
+            <a href="legal_pages.html#confidentialite">Politique de Confidentialité</a>
+            <a href="legal_pages.html#apropos">À Propos</a>
+            <a href="legal_pages.html#contact">Contact</a>
+        </div>
+        <a href="#" onclick="if(window.googlefc) googlefc.showRevocationMessage(); return false;">Gestion des cookies</a>
     </footer>
 
     <script type="module">
         import { SUPABASE_URL, SUPABASE_KEY } from './js/config.js';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        document.getElementById('registerForm').onsubmit = async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const username = document.getElementById('username').value;
-            const errorMsg = document.getElementById('error-msg');
-
-            const { error } = await supabase.auth.signUp({
-                email,
-                password,
-                options: { data: { display_name: username } }
+        // Attente asynchrone du chargement de Supabase
+        function getSupabase() {
+            return new Promise(resolve => {
+                const check = () => {
+                    if (window.supabase) resolve(window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY));
+                    else setTimeout(check, 50);
+                };
+                check();
             });
+        }
 
-            if (error) {
-                errorMsg.innerText = error.message;
-                errorMsg.style.display = 'block';
-            } else {
-                alert("Compte créé ! Connectez-vous maintenant.");
-                window.location.href = "login.html";
-            }
-        };
+        async function initRegister() {
+            const supabase = await getSupabase();
+            const form = document.getElementById('registerForm');
+            const errorMsg = document.getElementById('error-msg');
+            const submitBtn = document.getElementById('submit-btn');
+
+            form.onsubmit = async (e) => {
+                e.preventDefault();
+                submitBtn.disabled = true;
+                submitBtn.innerText = "Création en cours...";
+                errorMsg.style.display = 'none';
+
+                const email = document.getElementById('email').value.trim();
+                const password = document.getElementById('password').value;
+                const username = document.getElementById('username').value.trim();
+
+                const { error } = await supabase.auth.signUp({
+                    email,
+                    password,
+                    options: { 
+                        data: { display_name: username } 
+                    }
+                });
+
+                if (error) {
+                    errorMsg.innerText = error.message;
+                    errorMsg.style.display = 'block';
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = "Créer mon compte";
+                } else {
+                    alert("Compte créé avec succès ! Vous pouvez maintenant vous connecter.");
+                    window.location.href = "login.html";
+                }
+            };
+        }
+
+        window.addEventListener('DOMContentLoaded', initRegister);
     </script>
 </body>
 </html>
