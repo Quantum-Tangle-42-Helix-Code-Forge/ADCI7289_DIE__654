@@ -3,83 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;0,900;1,400&display=swap" rel="stylesheet">
+    <meta name="description" content="Gérez votre compte utilisateur, votre bibliothèque de jeux et vos préférences sur aks6.ink.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="main.css">
     <title>Mon Compte - aks6.ink</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
     <meta name="google-adsense-account" content="ca-pub-4741766423982776">
     <style>
-        :root { --Aks6_white_back: #141414; --Aks6_body_color: #e2e2e2; --Aks6_link_color: #fa5c5c; }
-        body { background-color: var(--Aks6_white_back); color: var(--Aks6_body_color); margin: 0; font-family: Lato, sans-serif; }
-        .header_spacer { height: 50px; }
-        .primary_header { background-color: #1b1b1b; border-bottom: 1px solid #333; display: flex; align-items: center; height: 50px; padding: 0 20px; position: fixed; top: 0; left: 0; right: 0; z-index: 1000; }
-        .header_logo { color: #fa5c5c; text-decoration: none; font-weight: 900; font-size: 22px; }
-        .inner_column { max-width: 960px; margin: 0 auto; padding: 20px; }
-        .box { background: #1b1b1b; padding: 20px; border-radius: 8px; border: 1px solid #333; margin-top: 20px; }
-        .button.outline { border: 1px solid #555; color: #ccc; padding: 6px 15px; border-radius: 3px; text-decoration: none; font-size: 14px; background: transparent; cursor: pointer; }
-        .admin-badge { background: rgba(250,92,92,0.2); color: #fa5c5c; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; margin-left: 10px; border: 1px solid #fa5c5c; }
+        .admin-badge { 
+            background: rgba(201, 42, 42, 0.2); 
+            color: var(--accent-light); 
+            padding: 4px 8px; 
+            border-radius: 4px; 
+            font-size: 12px; 
+            font-weight: bold; 
+            margin-left: 10px; 
+            border: 1px solid var(--accent-light); 
+        }
     </style>
 </head>
 <body>
     <div class="header_spacer"></div>
-    <div class="primary_header">
-		<a class="header_logo" href="index.html">aks6.com</a>
-		<div class="header_buttons">
-			<a class="header_button" href="browse.html">Browse Games</a>
-		</div>
+    <header class="primary_header">
+        <a class="header_logo" href="index.html">aks6.ink</a>
+        <div class="header_buttons">
+            <a class="header_button" href="browse.html">Parcourir</a>
+        </div>
+        <form action="browse.html" method="GET" class="game_search" role="search">
+            <input type="text" name="q" class="search_input" placeholder="Rechercher titre, genre..." aria-label="Rechercher des jeux">
+        </form>
+        <div class="user_panel_widget">
+            <a href="index.html" class="panel_button">Accueil</a>
+        </div>
+    </header>
 
-		<!-- RECHERCHE : Envoie vers browse.html?q=... -->
-		<form action="browse.html" method="GET" class="game_search">
-			<input type="text" name="q" class="search_input" placeholder="Rechercher titre, tag, genre...">
-		</form>
-	</div>
-
-    <div class="main inner_column">
-        <div id="loader">Vérification du profil...</div>
+    <main class="inner_column">
+        <div id="loader" style="text-align: center; padding: 40px; color: var(--text-muted);">
+            Vérification du profil en cours...
+        </div>
 
         <div id="profile-ui" style="display: none;">
-            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #333; padding-bottom: 20px;">
-                <h2 style="margin:0;">Dashboard: <span id="user-name"></span> <span id="admin-tag" style="display:none;" class="admin-badge">ADMIN</span></h2>
-                <button id="logout-btn" class="button outline">Log out</button>
+            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 20px;">
+                <h1 style="margin: 0; font-size: 22px;">Tableau de bord : <span id="user-name"></span> <span id="admin-tag" style="display:none;" class="admin-badge">ADMIN</span></h1>
+                <button type="button" id="logout-btn" class="panel_button">Déconnexion</button>
             </div>
             
-            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 30px; margin-top: 30px;">
-                <div class="left_col">
-                    <h3 style="border-bottom: 2px solid #fa5c5c; display: inline-block; padding-bottom: 5px;">My Library</h3>
-                    <p style="color: #777; font-style: italic; margin-top: 20px;">Aucun jeu dans votre bibliothèque.</p>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-top: 30px;">
+                <div class="base_widget" style="margin-top: 0;">
+                    <h2 style="font-size: 18px; margin-top: 0; border-bottom: 2px solid var(--accent-red); padding-bottom: 8px;">Ma Bibliothèque</h2>
+                    <p style="color: var(--text-muted); font-style: italic; margin-top: 15px;">Aucun jeu dans votre bibliothèque pour le moment.</p>
                 </div>
                 
-                <div class="right_col">
-                    <div class="box">
-                        <h4 style="margin-top: 0; color: #fa5c5c;">Détails</h4>
-                        <p style="font-size: 14px;"><strong>Email:</strong> <span id="user-email"></span></p>
-                        
-                        <div id="admin-panel" style="display: none; border-top: 1px solid #333; margin-top: 20px; padding-top: 15px;">
-                            <p style="color: #fa5c5c; font-weight:bold; font-size: 14px;">🛡️ Administration</p>
-                            <a href="upload.html" style="display:block; background:#fa5c5c; color:white; text-decoration:none; text-align:center; padding:10px; border-radius:4px; font-weight:bold; margin-top:10px;">UPLOAD A GAME</a>
-                        </div>
+                <div class="base_widget" style="margin-top: 0;">
+                    <h2 style="margin-top: 0; font-size: 18px; color: var(--accent-light);">Informations</h2>
+                    <p style="font-size: 14px; margin: 10px 0;"><strong>Email :</strong> <span id="user-email" style="color: var(--text-muted);"></span></p>
+                    
+                    <div id="admin-panel" style="display: none; border-top: 1px solid var(--border-color); margin-top: 20px; padding-top: 15px;">
+                        <p style="color: var(--accent-light); font-weight: bold; font-size: 14px; margin-top: 0;">🛡️ Espace Administration</p>
+                        <a href="upload.html" class="button" style="width: 100%;">AJOUTER UN JEU</a>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+    </main>
+
     <footer class="footer">
-		<div style="margin-bottom: 10px; color: var(--Aks6_body_color);">
-			© 2026 <strong>Sekhmetis</strong> - Tous droits réservés.
-		</div>
-		<div style="display: flex; justify-content: center; gap: 20px;">
-			<a href="legal_pages.html#confidentialite" style="text-decoration: none; font-size: 12px;">Politique de Confidentialité</a>
-			<a href="legal_pages.html#apropos" style="text-decoration: none; font-size: 12px;">À Propos</a>
-			<a href="legal_pages.html#contact" style="text-decoration: none; font-size: 12px;">Contact</a>
-		</div>
-		<a href="#" onclick="googlefc.showRevocationMessage(); return false;" style="text-decoration: none; font-size: 12px;">Gestion des cookies</a>
+        <div class="footer_copy">
+            © 2026 <strong>Sekhmetis</strong> - Tous droits réservés.
+        </div>
+        <div class="footer_links">
+            <a href="legal_pages.html#confidentialite">Politique de Confidentialité</a>
+            <a href="legal_pages.html#apropos">À Propos</a>
+            <a href="legal_pages.html#contact">Contact</a>
+        </div>
+        <a href="#" onclick="if(window.googlefc) googlefc.showRevocationMessage(); return false;">Gestion des cookies</a>
     </footer>
 
     <script type="module">
         import { SUPABASE_URL, SUPABASE_KEY } from './js/config.js';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        function getSupabase() {
+            return new Promise(resolve => {
+                const check = () => {
+                    if (window.supabase) resolve(window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY));
+                    else setTimeout(check, 50);
+                };
+                check();
+            });
+        }
 
         async function checkProfile() {
-            // 1. Récupérer l'utilisateur connecté
+            const supabase = await getSupabase();
             const { data: { user }, error: authError } = await supabase.auth.getUser();
 
             if (authError || !user) {
@@ -87,21 +103,18 @@
                 return;
             }
 
-            // 2. Afficher les infos de base
             document.getElementById('loader').style.display = 'none';
             document.getElementById('profile-ui').style.display = 'block';
-            document.getElementById('user-name').innerText = user.user_metadata.display_name || user.email.split('@')[0];
+            document.getElementById('user-name').innerText = user.user_metadata?.display_name || user.email.split('@')[0];
             document.getElementById('user-email').innerText = user.email;
 
-            // 3. VÉRIFICATION DANS LA TABLE ADMINS
-            // On cherche si l'UID de l'utilisateur existe dans la table 'admins'
+            // Vérification des droits administrateur
             const { data: adminData, error: adminError } = await supabase
                 .from('admins')
                 .select('user_id')
                 .eq('user_id', user.id)
-                .single();
+                .maybeSingle();
 
-            // Si on a un résultat, l'utilisateur est admin
             if (adminData && !adminError) {
                 document.getElementById('admin-tag').style.display = 'inline-block';
                 document.getElementById('admin-panel').style.display = 'block';
@@ -109,11 +122,12 @@
         }
 
         document.getElementById('logout-btn').onclick = async () => {
+            const supabase = await getSupabase();
             await supabase.auth.signOut();
             window.location.href = "index.html";
         };
 
-        checkProfile();
+        window.addEventListener('DOMContentLoaded', checkProfile);
     </script>
 </body>
 </html>

@@ -3,26 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;0,900;1,400&display=swap" rel="stylesheet">
-    <title>aks6.com - Game Details</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <meta name="google-adsense-account" content="ca-pub-4741766423982776">
+    <meta name="description" content="Jouez directement en ligne sur aks6.ink.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="main.css">
+    <title>aks6.ink - Détails du Jeu</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
     <style>
-        :root { --Aks6_white_back: #141414; --Aks6_border_color: #333333; --Aks6_link_color: #fa5c5c; }
-        body { background-color: var(--Aks6_white_back); color: #e2e2e2; margin: 0; font-family: Lato, sans-serif; }
-        .header_spacer { height: 50px; }
-        .primary_header { background-color: #1b1b1b; border-bottom: 1px solid var(--Aks6_border_color); display: flex; align-items: center; height: 50px; padding: 0 20px; position: fixed; top: 0; left: 0; right: 0; z-index: 1000; }
-        .header_logo { color: #fa5c5c; text-decoration: none; font-weight: 900; font-size: 22px; }
-        .inner_column { max-width: 960px; margin: 0 auto; padding: 20px; }
-        
-        /* ZONE DE PRESENTATION */
         .game_hero {
             width: 100%;
-            height: 400px;
+            height: 380px;
             background-size: cover;
             background-position: center;
             border-radius: 8px;
-            border: 1px solid #333;
+            border: 1px solid var(--border-color);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -34,80 +29,79 @@
             content: "";
             position: absolute;
             inset: 0;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(5px);
+            background: rgba(0,0,0,0.65);
+            backdrop-filter: blur(4px);
         }
         .hero_content { position: relative; z-index: 1; text-align: center; }
-        
-        .button.play {
-            background: #fa5c5c;
-            color: white;
-            border: none;
-            padding: 20px 50px;
-            border-radius: 4px;
-            font-weight: 900;
+        .play_btn_large {
             font-size: 20px;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-            transition: transform 0.2s, background 0.2s;
+            padding: 16px 40px;
+            min-height: 54px;
         }
-        .button.play:hover { transform: scale(1.05); background: #ff6b6b; }
-
-        .formatted.game_description { padding: 30px 0; border-top: 1px solid #333; margin-top: 20px; }
-        h1 { font-size: 32px; margin-bottom: 10px; }
     </style>
 </head>
 <body>
     <div class="header_spacer"></div>
-    <div class="primary_header">
-		<a class="header_logo" href="index.html">aks6.com</a>
-		<div class="header_buttons">
-			<a class="header_button" href="browse.html">Browse Games</a>
-		</div>
-		<!-- RECHERCHE : Envoie vers browse.html?q=... -->
-		<form action="browse.html" method="GET" class="game_search">
-			<input type="text" name="q" class="search_input" placeholder="Rechercher titre, tag, genre...">
-		</form>
-	</div>
+    <header class="primary_header">
+        <a class="header_logo" href="index.html">aks6.ink</a>
+        <div class="header_buttons">
+            <a class="header_button" href="browse.html">Parcourir</a>
+        </div>
+        <form action="browse.html" method="GET" class="game_search" role="search">
+            <input type="text" name="q" class="search_input" placeholder="Rechercher titre, genre..." aria-label="Rechercher des jeux">
+        </form>
+        <div class="user_panel_widget">
+            <a href="index.html" class="panel_button">Accueil</a>
+        </div>
+    </header>
 
-    <div class="main inner_column">
+    <main class="inner_column">
         <div id="game-info">
-            <h1 id="game-title">Chargement...</h1>
+            <h1 id="game-title" style="margin: 0;">Chargement...</h1>
             <div id="game-hero" class="game_hero">
                 <div class="hero_content">
-                    <a id="play-link" href="#" class="button play">LANCER LE JEU</a>
+                    <a id="play-link" href="#" class="button play_btn_large">LANCER LE JEU</a>
                 </div>
             </div>
 
-            <div class="formatted game_description">
-                <h3>Description</h3>
-                <p id="game-desc" style="line-height: 1.6; color: #bbb;"></p>
+            <div class="base_widget">
+                <h2 style="font-size: 18px; margin-top: 0;">À propos de ce jeu</h2>
+                <p id="game-desc" style="line-height: 1.6; color: var(--text-muted); margin: 0;"></p>
             </div>
         </div>
-    </div>
+    </main>
+
     <footer class="footer">
-		<div style="margin-bottom: 10px; color: var(--Aks6_body_color);">
-			© 2026 <strong>Sekhmetis</strong> - Tous droits réservés.
-		</div>
-		<div style="display: flex; justify-content: center; gap: 20px;">
-			<a href="legal_pages.html#confidentialite" style="text-decoration: none; font-size: 12px;">Politique de Confidentialité</a>
-			<a href="legal_pages.html#apropos" style="text-decoration: none; font-size: 12px;">À Propos</a>
-			<a href="legal_pages.html#contact" style="text-decoration: none; font-size: 12px;">Contact</a>
-		</div>
-		<a href="#" onclick="googlefc.showRevocationMessage(); return false;" style="text-decoration: none; font-size: 12px;">Gestion des cookies</a>
+        <div class="footer_copy">
+            © 2026 <strong>Sekhmetis</strong> - Tous droits réservés.
+        </div>
+        <div class="footer_links">
+            <a href="legal_pages.html#confidentialite">Politique de Confidentialité</a>
+            <a href="legal_pages.html#apropos">À Propos</a>
+            <a href="legal_pages.html#contact">Contact</a>
+        </div>
+        <a href="#" onclick="if(window.googlefc) googlefc.showRevocationMessage(); return false;">Gestion des cookies</a>
     </footer>
 
     <script type="module">
         import { SUPABASE_URL, SUPABASE_KEY } from './js/config.js';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        const params = new URLSearchParams(window.location.search);
-        const slug = params.get('slug');
+        function getSupabase() {
+            return new Promise(resolve => {
+                const check = () => {
+                    if (window.supabase) resolve(window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY));
+                    else setTimeout(check, 50);
+                };
+                check();
+            });
+        }
 
         async function loadGame() {
+            const params = new URLSearchParams(window.location.search);
+            const slug = params.get('slug');
             if(!slug) { window.location.href = "index.html"; return; }
 
+            const supabase = await getSupabase();
             const { data: game, error } = await supabase.from('games').select('*').eq('slug', slug).single();
             
             if(error || !game) {
@@ -116,20 +110,14 @@
                 return;
             }
 
-            // Mise à jour de l'interface
-            document.title = game.title + " - aks6.com";
+            document.title = game.title + " - aks6.ink";
             document.getElementById('game-title').innerText = game.title;
             document.getElementById('game-desc').innerText = game.description;
-            
-            // Image de fond pour le "Hero"
             document.getElementById('game-hero').style.backgroundImage = `url('${game.cover_image}')`;
-            
-            // LIEN DE REDIRECTION DIRECTE
-            // On pointe vers le dossier du jeu. GitHub Pages chargera index.html automatiquement.
             document.getElementById('play-link').href = `./games/${game.slug}/`;
         }
 
-        loadGame();
+        window.addEventListener('DOMContentLoaded', loadGame);
     </script>
 </body>
 </html>
