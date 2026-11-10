@@ -117,29 +117,44 @@
         const grid = document.getElementById('game-grid');
         const resultTitle = document.getElementById('result-title');
 
-        // Récupérer le mot-clé depuis l'URL (si présent)
         const urlParams = new URLSearchParams(window.location.search);
         const queryFromHeader = urlParams.get('q');
         if (queryFromHeader) {
             searchInput.value = queryFromHeader;
         }
 
+        // 1. Détection du rôle Admin
+        let isAdmin = false;
+        async function checkRole() {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { data: adminData } = await supabase
+                    .from('admins')
+                    .select('user_id')
+                    .eq('user_id', user.id)
+                    .maybeSingle();
+                isAdmin = adminData !== null;
+            }
+            updateSearch();
+        }
+
         async function updateSearch() {
             const text = searchInput.value.trim();
             const genre = genreSelect.value;
 
-            let dbQuery = supabase.from('games').select('*');
+            // Filtrage strict : les admins voient is_test = true, le public voit is_test = false
+            let dbQuery = supabase
+                .from('games')
+                .select('*')
+                .eq('is_test', isAdmin);
 
-            // LOGIQUE DE RECHERCHE UNIVERSELLE
-            // On cherche si "text" est présent dans le Titre OU le Short_text (tags) OU le Genre
             if (text) {
                 dbQuery = dbQuery.or(`title.ilike.%${text}%,short_text.ilike.%${text}%,genre.ilike.%${text}%`);
-                resultTitle.innerText = `Résultats pour "${text}"`;
+                resultTitle.innerText = `Résultats pour "${text}" ${isAdmin ? '(Mode Test)' : ''}`;
             } else {
-                resultTitle.innerText = "Tous les jeux";
+                resultTitle.innerText = isAdmin ? "🧪 Tous les jeux en test (Admin)" : "Tous les jeux";
             }
 
-            // Filtre strict par genre si sélectionné
             if (genre) {
                 dbQuery = dbQuery.eq('genre', genre);
             }
@@ -162,6 +177,7 @@
                         <img src="${game.cover_image}" alt="${game.title}">
                     </a>
                     <div class="label">
+                        ${game.is_test ? '<span style="background:#fa5c5c; color:white; font-size:10px; padding:2px 5px; border-radius:3px; font-weight:bold; margin-right:5px;">TEST</span>' : ''}
                         <span class="genre_tag">${game.genre || 'Jeu'}</span>
                         <span class="price_tag">${game.price} $</span>
                         <a href="game.html?slug=${game.slug}" class="title_link">${game.title}</a>
@@ -171,12 +187,11 @@
             `).join('');
         }
 
-        // Ecouter les changements en temps réel
         searchInput.addEventListener('input', updateSearch);
         genreSelect.addEventListener('change', updateSearch);
 
-        // Lancer la recherche initiale
-        updateSearch();
+        // Lancement après détection admin
+        checkRole();
     </script>
 </body>
 </html>

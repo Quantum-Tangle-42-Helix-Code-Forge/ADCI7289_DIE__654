@@ -23,3 +23,5 @@ Fichier 3  |   create-transaction	    |	C'est le fichier central de communicatio
 ...........|----------------------------|	puis appelle directement l'API de Paddle pour générer l'ID de transaction et l'URL du tunnel de paiement 
 ...........|----------------------------|	(checkout_url).
 
+
+

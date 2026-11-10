@@ -110,21 +110,23 @@
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         async function init() {
-            // 1. GESTION DU HEADER (AUTHENTIFICATION ET ADMIN)
+            // 1. DÉTECTION DU RÔLE ADMIN
             const { data: { user } } = await supabase.auth.getUser();
             const panel = document.getElementById('user-panel');
+            let isAdmin = false;
             
             if (user) {
-                // On vérifie si l'utilisateur est admin via la table 'admins'
                 const { data: adminData } = await supabase
                     .from('admins')
                     .select('user_id')
                     .eq('user_id', user.id)
-                    .single();
+                    .maybeSingle();
+
+                isAdmin = adminData !== null;
 
                 panel.innerHTML = `
-                    <a href="user_account.html" class="panel_button">${user.user_metadata.display_name || 'Compte'}</a>
-                    ${adminData ? '<a href="upload.html" class="panel_button" style="color:#fa5c5c; border-color:#fa5c5c;">Upload</a>' : ''}
+                    <a href="user_account.html" class="panel_button">${user.user_metadata?.display_name || 'Compte'}</a>
+                    ${isAdmin ? '<a href="upload.html" class="panel_button" style="color:#fa5c5c; border-color:#fa5c5c;">Upload</a>' : ''}
                     <button id="logout-btn" class="panel_button" style="background:none; cursor:pointer;">Log out</button>
                 `;
 
@@ -133,17 +135,28 @@
                     window.location.reload();
                 };
             } else {
-                // Liens vers login.html et register.html (Correction des liens relatifs)
                 panel.innerHTML = `
                     <a href="login.html" class="panel_button">Log in</a>
                     <a href="register.html" class="panel_button register_button">Register</a>
                 `;
             }
 
-            // 2. CHARGEMENT DES JEUX
+            // 2. INDICATEUR VISUEL DANS LE TITRE
+            const titleSpan = document.querySelector('.browse_header h2');
+            if (isAdmin) {
+                titleSpan.innerHTML = `
+                    <span style="color:#fa5c5c;">🧪 Jeux en Phase de Test (Admin)</span>
+                    <span id="game-count" style="font-weight: normal; color: #777;"></span>
+                `;
+            }
+
+            // 3. CHARGEMENT FILTRÉ DES JEUX
+            // Si admin -> is_test = true
+            // Si joueur classique / déconnecté -> is_test = false
             const { data: games, error } = await supabase
                 .from('games')
                 .select('*')
+                .eq('is_test', isAdmin)
                 .order('created_at', { ascending: false });
 
             if (error) {
@@ -156,7 +169,9 @@
             const grid = document.getElementById('game-grid');
             
             if (games.length === 0) {
-                grid.innerHTML = "<p>Aucun jeu disponible pour le moment.</p>";
+                grid.innerHTML = isAdmin 
+                    ? "<p style='color:#fa5c5c;'>Aucun jeu en phase de test actuellement.</p>" 
+                    : "<p>Aucun jeu disponible pour le moment.</p>";
                 return;
             }
 
@@ -168,9 +183,10 @@
                         </a>
                     </div>
                     <div class="label">
+                        ${game.is_test ? '<span style="background:#fa5c5c; color:white; font-size:10px; padding:2px 5px; border-radius:3px; font-weight:bold; margin-right:5px;">TEST</span>' : ''}
                         <span class="price_tag">${game.price} $</span>
                         <a class="title" href="game.html?slug=${game.slug}">${game.title}</a>
-                        <div class="sub">${game.short_text}</div>
+                        <div class="sub">${game.short_text || ''}</div>
                     </div>
                 </div>
             `).join('');
