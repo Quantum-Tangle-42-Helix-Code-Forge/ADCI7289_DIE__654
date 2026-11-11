@@ -107,10 +107,20 @@
 				}
 			}
 
-			// 2. Récupération de l'utilisateur actif
+			// 2. Récupération sécurisée de l'utilisateur actif
 			if (!activeUser) {
-				const { data: { user } } = await supabase.auth.getUser();
-				if (user) activeUser = user;
+				try {
+					const { data: { user }, error: authError } = await supabase.auth.getUser();
+					if (authError || !user) {
+						// Si le jeton est expiré/403, on nettoie la session locale
+						await supabase.auth.signOut();
+						activeUser = null;
+					} else {
+						activeUser = user;
+					}
+				} catch (e) {
+					activeUser = null;
+				}
 			}
 
 			if (!activeUser) {
