@@ -332,7 +332,7 @@ const engine = new Engine(GODOT_CONFIG);
 		<script type="module">
 			// ✅ APRÈS (propre et fonctionnel) :
 			import { GameSync } from '../../js/game-sync.js';
-			import { supabaseClient } from "../../js/config.js?v=1.0.2";
+			import { supabase } from "../../js/config.js?v=1.0.2";
 
 
 
@@ -427,7 +427,7 @@ const engine = new Engine(GODOT_CONFIG);
 			let lastKnownUserId = null;
 
 			// On surveille les changements de connexion en temps réel
-			supabaseClient.auth.onAuthStateChange((event, session) => {
+			supabase.auth.onAuthStateChange((event, session) => {
 				const currentUserId = session?.user?.id || null;
 				
 				// Si l'utilisateur vient de se connecter alors que le jeu tourne déjà
@@ -480,10 +480,10 @@ const engine = new Engine(GODOT_CONFIG);
 			// Récupère les intentions annulées ou échouées non encore vues par le jeu
 			window.requestFailedIntents = async function() {
 				try {
-					const { data: { user } } = await supabaseClient.auth.getUser();
+					const { data: { user } } = await supabase.auth.getUser();
 					if (!user) return;
 
-					const { data } = await supabaseClient
+					const { data } = await supabase
 						.from('payment_intents')
 						.select('id, status, paddle_price_id')
 						.eq('user_id', user.id)
@@ -501,7 +501,7 @@ const engine = new Engine(GODOT_CONFIG);
 			// Marque une intention comme "traitée" (pour ne plus afficher le message d'erreur)
 			window.markIntentAsNotified = async function(intentId) {
 				// On peut par exemple mettre une date dans completed_at pour dire "le joueur a vu l'erreur"
-				await supabaseClient
+				await supabase
 					.from('payment_intents')
 					.update({ completed_at: new Date().toISOString() }) 
 					.eq('id', intentId);
@@ -513,21 +513,21 @@ const engine = new Engine(GODOT_CONFIG);
 					const ids = JSON.parse(idsJson);
 					for (let id of ids) {
 						// 1. Récupérer la référence Paddle pour lier les deux tables
-						const { data: tx } = await supabaseClient
+						const { data: tx } = await supabase
 							.from('wallet_transactions')
 							.select('reference_id')
 							.eq('id', id)
 							.single();
 
 						// 2. Marquer comme traité dans wallet_transactions
-						await supabaseClient
+						await supabase
 							.from('wallet_transactions')
 							.update({ metadata: { processed: true } })
 							.eq('id', id);
 
 						// 3. Marquer comme livré dans item_purchases (via l'ID de commande Paddle)
 						if (tx && tx.reference_id) {
-							await supabaseClient
+							await supabase
 								.from('item_purchases')
 								.update({ delivered: true })
 								.eq('paddle_order_id', tx.reference_id);
@@ -542,7 +542,7 @@ const engine = new Engine(GODOT_CONFIG);
 			// GESTION DES TRANSACTIONS PADDLE
 			window.requestPendingTransactions = async function (gameSlug) {
 				try {
-					const { data, error } = await supabaseClient.rpc(
+					const { data, error } = await supabase.rpc(
 						"claim_pending_rewards",
 						{ p_game_slug: gameSlug }
 					);
