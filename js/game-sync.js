@@ -1,4 +1,4 @@
-import { supabaseClient, SAVE_SALT } from "./config.js";
+import { supabase, SAVE_SALT } from "./config.js";
 
 let syncTimer = null;
 let isSyncDisabled = false;
@@ -22,7 +22,7 @@ export const GameSync = {
 
      async load(gameSlug) {
         try {
-            const { data: { user } } = await supabaseClient.auth.getUser();
+            const { data: { user } } = await supabase.auth.getUser();
             const localRaw = localStorage.getItem(`save_${gameSlug}`);
             const envelope = localRaw ? JSON.parse(localRaw) : null;
 
@@ -36,7 +36,7 @@ export const GameSync = {
             if (!user) return localData;
 
             // --- 2. RÉCUPÉRATION CLOUD ---
-            const { data: remoteRow, error } = await supabaseClient
+            const { data: remoteRow, error } = await supabase
                 .from("user_game_data")
                 .select("data")
                 .eq('user_id', user.id)
@@ -98,14 +98,14 @@ export const GameSync = {
 	
 	async deleteData(gameSlug) {
 		try {
-			const { data: { user } } = await supabaseClient.auth.getUser();
+			const { data: { user } } = await supabase.auth.getUser();
 			
 			// 1. Supprimer du LocalStorage (Navigateur)
 			localStorage.removeItem(`save_${gameSlug}`);
 
 			if (user) {
 				// 2. Supprimer de Supabase (Cloud)
-				const { error } = await supabaseClient
+				const { error } = await supabase
 					.from('user_game_data')
 					.delete()
 					.eq('user_id', user.id)
@@ -140,7 +140,7 @@ export const GameSync = {
 		
 		try {
 			// 1. Vérifier si l'utilisateur est connecté
-			const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+			const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 			if (sessionError || !session) {
 				console.warn("☁️ Pas de session active, synchro cloud ignorée.");
 				return;
@@ -161,7 +161,7 @@ export const GameSync = {
 
 			// 3. Écraser sur Supabase (Simple Upsert)
 			// APPEL DE LA FONCTION SÉCURISÉE AU LIEU DE L'UPSERT DIRECT
-			const { data, error } = await supabaseClient.functions.invoke('secure-sync', {
+			const { data, error } = await supabase.functions.invoke('secure-sync', {
 				body: { 
 					game_slug: gameSlug, 
 					new_data: dataToSend 
