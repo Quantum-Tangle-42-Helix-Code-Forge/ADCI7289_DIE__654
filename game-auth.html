@@ -23,41 +23,34 @@
     </footer>
 
     <script type="module">
-        import { SUPABASE_URL, SUPABASE_KEY } from './js/config.js';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+		import { supabase } from './js/config.js';
 
-        async function checkAuthAndRedirect() {
-            const statusJson = document.getElementById('status');
-            
-            // 1. Récupérer la session actuelle du navigateur
-            const { data: { session }, error } = await supabase.auth.getSession();
+		async function checkAuthAndRedirect() {
+			const statusJson = document.getElementById('status');
+			
+			// Récupérer la session actuelle du navigateur
+			const { data: { session }, error } = await supabase.auth.getSession();
 
-            if (error || !session) {
-                // Si l'utilisateur n'est pas connecté sur le site, on le redirige vers votre page de login classique
-                // en ajoutant un paramètre pour revenir ici après
-                statusJson.innerText = "Non connecté. Redirection vers la page de connexion...";
-                window.location.href = "login.html?redirect=game-auth.html";
-                return;
-            }
+			if (error || !session) {
+				statusJson.innerText = "Non connecté. Redirection vers la page de connexion...";
+				window.location.href = "login.html?redirect_to=game-auth.html";
+				return;
+			}
 
-            // 2. Extraire les données nécessaires pour le jeu
-            const token = session.access_token;
-            const userId = session.user.id;
+			const token = session.access_token;
+			const userId = session.user.id;
 
-            statusJson.innerText = "Session trouvée ! Redirection vers le jeu...";
+			statusJson.innerText = "Session trouvée ! Redirection vers le jeu...";
 
-            // 3. Envoyer les données vers le jeu via le Deep Link
-            // Le format : aks6-game://auth?token=VALEUR&id=VALEUR
-            window.location.href = `aks6-game://auth?token=${token}&id=${userId}`;
+			// Envoi des données vers le jeu via Deep Link
+			window.location.href = `aks6-game://auth?token=${token}&id=${userId}`;
 
-            // Optionnel : Fermer l'onglet après quelques secondes pour nettoyer le navigateur de l'utilisateur
-            setTimeout(() => {
-                statusJson.innerText = "Vous pouvez fermer cette fenêtre et retourner sur votre jeu.";
-            }, 2000);
-        }
+			setTimeout(() => {
+				statusJson.innerText = "Vous pouvez fermer cette fenêtre et retourner sur votre jeu.";
+			}, 2000);
+		}
 
-        // Exécuter la vérification au chargement
-        window.onload = checkAuthAndRedirect;
-    </script>
+		window.addEventListener('DOMContentLoaded', checkAuthAndRedirect);
+	</script>
 </body>
 </html>

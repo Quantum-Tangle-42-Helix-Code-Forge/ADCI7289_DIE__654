@@ -66,88 +66,77 @@
         <a href="#" onclick="if(window.googlefc) googlefc.showRevocationMessage(); return false;">Gestion des cookies</a>
     </footer>
 
-    <script type="module">
-        import { SUPABASE_URL, SUPABASE_KEY } from './js/config.js';
-        
-        function getSupabase() {
-            return new Promise(resolve => {
-                const check = () => {
-                    if (window.supabase) resolve(window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY));
-                    else setTimeout(check, 50);
-                };
-                check();
-            });
-        }
+	<script type="module">
+		import { supabase } from './js/config.js';
 
-        async function init() {
-            const supabase = await getSupabase();
-            const searchInput = document.getElementById('universal-search');
-            const genreSelect = document.getElementById('genre-select');
-            const grid = document.getElementById('game-grid');
-            const resultTitle = document.getElementById('result-title');
+		async function init() {
+			const searchInput = document.getElementById('universal-search');
+			const genreSelect = document.getElementById('genre-select');
+			const grid = document.getElementById('game-grid');
+			const resultTitle = document.getElementById('result-title');
 
-            const urlParams = new URLSearchParams(window.location.search);
-            const queryFromHeader = urlParams.get('q');
-            if (queryFromHeader) searchInput.value = queryFromHeader;
+			const urlParams = new URLSearchParams(window.location.search);
+			const queryFromHeader = urlParams.get('q');
+			if (queryFromHeader) searchInput.value = queryFromHeader;
 
-            let isAdmin = false;
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                const { data: adminData } = await supabase
-                    .from('admins')
-                    .select('user_id')
-                    .eq('user_id', user.id)
-                    .maybeSingle();
-                isAdmin = adminData !== null;
-            }
+			let isAdmin = false;
+			const { data: { user } } = await supabase.auth.getUser();
+			if (user) {
+				const { data: adminData } = await supabase
+					.from('admins')
+					.select('user_id')
+					.eq('user_id', user.id)
+					.maybeSingle();
+				isAdmin = adminData !== null;
+			}
 
-            async function updateSearch() {
-                const text = searchInput.value.trim();
-                const genre = genreSelect.value;
+			async function updateSearch() {
+				const text = searchInput.value.trim();
+				const genre = genreSelect.value;
 
-                let dbQuery = supabase
-                    .from('games')
-                    .select('*')
-                    .eq('is_test', isAdmin);
+				let dbQuery = supabase
+					.from('games')
+					.select('*')
+					.eq('is_test', isAdmin);
 
-                if (text) {
-                    dbQuery = dbQuery.or(`title.ilike.%${text}%,short_text.ilike.%${text}%,genre.ilike.%${text}%`);
-                    resultTitle.innerText = `Résultats pour "${text}"`;
-                } else {
-                    resultTitle.innerText = isAdmin ? "🧪 Tous les jeux en test (Admin)" : "Tous les jeux";
-                }
+				if (text) {
+					dbQuery = dbQuery.or(`title.ilike.%${text}%,short_text.ilike.%${text}%,genre.ilike.%${text}%`);
+					resultTitle.innerText = `Résultats pour "${text}"`;
+				} else {
+					resultTitle.innerText = isAdmin ? "🧪 Tous les jeux en test (Admin)" : "Tous les jeux";
+				}
 
-                if (genre) dbQuery = dbQuery.eq('genre', genre);
+				if (genre) dbQuery = dbQuery.eq('genre', genre);
 
-                const { data: games, error } = await dbQuery.order('created_at', { ascending: false });
+				const { data: games, error } = await dbQuery.order('created_at', { ascending: false });
 
-                if (error || !games || games.length === 0) {
-                    grid.innerHTML = "<p style='grid-column: 1/-1; text-align: center; color: var(--text-muted);'>Aucun jeu ne correspond à votre recherche.</p>";
-                    return;
-                }
+				if (error || !games || games.length === 0) {
+					grid.innerHTML = "<p style='grid-column: 1/-1; text-align: center; color: var(--text-muted);'>Aucun jeu ne correspond à votre recherche.</p>";
+					return;
+				}
 
-                grid.innerHTML = games.map(game => `
-                    <article class="game_cell">
-                        <div class="bordered">
-                            <a href="game.html?slug=${game.slug}">
-                                <img src="${game.cover_image}" alt="Aperçu de ${game.title}" width="315" height="200" loading="lazy">
-                            </a>
-                        </div>
-                        <div class="label">
-                            <span class="price_tag">${game.price == 0 ? 'Gratuit' : game.price + ' $'}</span>
-                            <a href="game.html?slug=${game.slug}" class="title">${game.title}</a>
-                            <div class="sub">${game.short_text || ''}</div>
-                        </div>
-                    </article>
-                `).join('');
-            }
+				grid.innerHTML = games.map(game => `
+					<article class="game_cell">
+						<div class="bordered">
+							<a href="game.html?slug=${game.slug}">
+								<img src="${game.cover_image}" alt="Aperçu de ${game.title}" width="315" height="200" loading="lazy">
+							</a>
+						</div>
+						<div class="label">
+							<span class="price_tag">${game.price == 0 ? 'Gratuit' : game.price + ' $'}</span>
+							<a href="game.html?slug=${game.slug}" class="title">${game.title}</a>
+							<div class="sub">${game.short_text || ''}</div>
+						</div>
+					</article>
+				`).join('');
+			}
 
-            searchInput.addEventListener('input', updateSearch);
-            genreSelect.addEventListener('change', updateSearch);
-            updateSearch();
-        }
+			searchInput.addEventListener('input', updateSearch);
+			genreSelect.addEventListener('change', updateSearch);
+			updateSearch();
+		}
 
-        window.addEventListener('DOMContentLoaded', init);
-    </script>
+		window.addEventListener('DOMContentLoaded', init);
+	</script>
 </body>
 </html>

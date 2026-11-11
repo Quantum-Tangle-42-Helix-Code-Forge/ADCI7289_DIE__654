@@ -13,4 +13,6 @@ export const CLOUDINARY_PRESET = "aksess_preset";
 
 export const SAVE_SALT = "je longtemps ensemble 00001827655444 désassemblement partie mais en vain sur moche que tout va pour ainsi faire une 654345433 meilleut constament devenu grosse sur petite niche de toi,326";
 
-export const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+export const supabase = window.supabase 
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) 
+    : null;

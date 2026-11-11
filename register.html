@@ -66,56 +66,40 @@
     </footer>
 
     <script type="module">
-        import { SUPABASE_URL, SUPABASE_KEY } from './js/config.js';
+		import { supabase } from './js/config.js';
 
-        // Attente asynchrone du chargement de Supabase
-        function getSupabase() {
-            return new Promise(resolve => {
-                const check = () => {
-                    if (window.supabase) resolve(window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY));
-                    else setTimeout(check, 50);
-                };
-                check();
-            });
-        }
+		const form = document.getElementById('registerForm');
+		const errorMsg = document.getElementById('error-msg');
+		const submitBtn = document.getElementById('submit-btn');
 
-        async function initRegister() {
-            const supabase = await getSupabase();
-            const form = document.getElementById('registerForm');
-            const errorMsg = document.getElementById('error-msg');
-            const submitBtn = document.getElementById('submit-btn');
+		form.onsubmit = async (e) => {
+			e.preventDefault();
+			submitBtn.disabled = true;
+			submitBtn.innerText = "Création en cours...";
+			errorMsg.style.display = 'none';
 
-            form.onsubmit = async (e) => {
-                e.preventDefault();
-                submitBtn.disabled = true;
-                submitBtn.innerText = "Création en cours...";
-                errorMsg.style.display = 'none';
+			const email = document.getElementById('email').value.trim();
+			const password = document.getElementById('password').value;
+			const username = document.getElementById('username').value.trim();
 
-                const email = document.getElementById('email').value.trim();
-                const password = document.getElementById('password').value;
-                const username = document.getElementById('username').value.trim();
+			const { error } = await supabase.auth.signUp({
+				email,
+				password,
+				options: { 
+					data: { display_name: username } 
+				}
+			});
 
-                const { error } = await supabase.auth.signUp({
-                    email,
-                    password,
-                    options: { 
-                        data: { display_name: username } 
-                    }
-                });
-
-                if (error) {
-                    errorMsg.innerText = error.message;
-                    errorMsg.style.display = 'block';
-                    submitBtn.disabled = false;
-                    submitBtn.innerText = "Créer mon compte";
-                } else {
-                    alert("Compte créé avec succès ! Vous pouvez maintenant vous connecter.");
-                    window.location.href = "login.html";
-                }
-            };
-        }
-
-        window.addEventListener('DOMContentLoaded', initRegister);
-    </script>
+			if (error) {
+				errorMsg.innerText = error.message;
+				errorMsg.style.display = 'block';
+				submitBtn.disabled = false;
+				submitBtn.innerText = "Créer mon compte";
+			} else {
+				alert("Compte créé avec succès ! Vous pouvez maintenant vous connecter.");
+				window.location.href = "login.html";
+			}
+		};
+	</script>
 </body>
 </html>
