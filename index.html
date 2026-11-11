@@ -60,89 +60,72 @@
     </footer>
 
     <script type="module">
-        import { SUPABASE_URL, SUPABASE_KEY } from './js/config.js';
+		import { supabase } from './js/config.js';
 
-        // Attente de Supabase si chargé via defer
-        function getSupabase() {
-            if (window.supabase) {
-                return window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            }
-            return new Promise(resolve => {
-                const interval = setInterval(() => {
-                    if (window.supabase) {
-                        clearInterval(interval);
-                        resolve(window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY));
-                    }
-                }, 50);
-            });
-        }
+		async function init() {
+			// 1. Détection de Session & Rôle Administrateur
+			const { data: { user } } = await supabase.auth.getUser();
+			const panel = document.getElementById('user-panel');
+			let isAdmin = false;
+			
+			if (user) {
+				const { data: adminData } = await supabase
+					.from('admins')
+					.select('user_id')
+					.eq('user_id', user.id)
+					.maybeSingle();
 
-        async function init() {
-            const supabase = await getSupabase();
+				isAdmin = adminData !== null;
 
-            // 1. Détection Session & Rôle Admin
-            const { data: { user } } = await supabase.auth.getUser();
-            const panel = document.getElementById('user-panel');
-            let isAdmin = false;
-            
-            if (user) {
-                const { data: adminData } = await supabase
-                    .from('admins')
-                    .select('user_id')
-                    .eq('user_id', user.id)
-                    .maybeSingle();
+				panel.innerHTML = `
+					<a href="user_account.html" class="panel_button">${user.user_metadata?.display_name || 'Compte'}</a>
+					${isAdmin ? '<a href="upload.html" class="panel_button" style="color:var(--accent-light); border-color:var(--accent-light);">Ajouter</a>' : ''}
+					<button type="button" id="logout-btn" class="panel_button">Déconnexion</button>
+				`;
 
-                isAdmin = adminData !== null;
+				document.getElementById('logout-btn').onclick = async () => {
+					await supabase.auth.signOut();
+					window.location.reload();
+				};
+			}
 
-                panel.innerHTML = `
-                    <a href="user_account.html" class="panel_button">${user.user_metadata?.display_name || 'Compte'}</a>
-                    ${isAdmin ? '<a href="upload.html" class="panel_button" style="color:var(--accent-light); border-color:var(--accent-light);">Ajouter</a>' : ''}
-                    <button id="logout-btn" class="panel_button">Déconnexion</button>
-                `;
+			// 2. Chargement des jeux
+			const { data: games, error } = await supabase
+				.from('games')
+				.select('*')
+				.eq('is_test', isAdmin)
+				.order('created_at', { ascending: false });
 
-                document.getElementById('logout-btn').onclick = async () => {
-                    await supabase.auth.signOut();
-                    window.location.reload();
-                };
-            }
+			const grid = document.getElementById('game-grid');
+			if (error || !games) {
+				grid.innerHTML = "<p style='color:var(--text-muted);'>Erreur lors du chargement des jeux.</p>";
+				return;
+			}
 
-            // 2. Chargement des jeux
-            const { data: games, error } = await supabase
-                .from('games')
-                .select('*')
-                .eq('is_test', isAdmin)
-                .order('created_at', { ascending: false });
+			document.getElementById('game-count').innerText = ` (${games.length})`;
+			
+			if (games.length === 0) {
+				grid.innerHTML = "<p style='grid-column: 1/-1; text-align: center; color: var(--text-muted);'>Aucun jeu disponible pour le moment.</p>";
+				return;
+			}
 
-            const grid = document.getElementById('game-grid');
-            if (error || !games) {
-                grid.innerHTML = "<p>Erreur lors du chargement des jeux.</p>";
-                return;
-            }
+			grid.innerHTML = games.map(game => `
+				<article class="game_cell">
+					<div class="bordered">
+						<a href="game.html?slug=${game.slug}" aria-label="Jouer à ${game.title}">
+							<img src="${game.cover_image}" alt="Aperçu du jeu ${game.title}" width="315" height="200" loading="lazy">
+						</a>
+					</div>
+					<div class="label">
+						<span class="price_tag">${game.price == 0 ? 'Gratuit' : game.price + ' $'}</span>
+						<a class="title" href="game.html?slug=${game.slug}">${game.title}</a>
+						<div class="sub">${game.short_text || ''}</div>
+					</div>
+				</article>
+			`).join('');
+		}
 
-            document.getElementById('game-count').innerText = ` (${games.length})`;
-            
-            if (games.length === 0) {
-                grid.innerHTML = "<p style='grid-column: 1/-1; text-align: center;'>Aucun jeu disponible pour le moment.</p>";
-                return;
-            }
-
-            grid.innerHTML = games.map(game => `
-                <article class="game_cell">
-                    <div class="bordered">
-                        <a href="game.html?slug=${game.slug}" aria-label="Jouer à ${game.title}">
-                            <img src="${game.cover_image}" alt="Aperçu du jeu ${game.title}" width="315" height="200" loading="lazy">
-                        </a>
-                    </div>
-                    <div class="label">
-                        <span class="price_tag">${game.price == 0 ? 'Gratuit' : game.price + ' $'}</span>
-                        <a class="title" href="game.html?slug=${game.slug}">${game.title}</a>
-                        <div class="sub">${game.short_text || ''}</div>
-                    </div>
-                </article>
-            `).join('');
-        }
-
-        window.addEventListener('DOMContentLoaded', init);
-    </script>
+		window.addEventListener('DOMContentLoaded', init);
+	</script>
 </body>
 </html>

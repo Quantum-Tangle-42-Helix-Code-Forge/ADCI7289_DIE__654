@@ -84,40 +84,32 @@
     </footer>
 
     <script type="module">
-        import { SUPABASE_URL, SUPABASE_KEY } from './js/config.js';
+		import { supabase } from './js/config.js';
 
-        function getSupabase() {
-            return new Promise(resolve => {
-                const check = () => {
-                    if (window.supabase) resolve(window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY));
-                    else setTimeout(check, 50);
-                };
-                check();
-            });
-        }
+		async function loadGame() {
+			const params = new URLSearchParams(window.location.search);
+			const slug = params.get('slug');
+			if (!slug) { 
+				window.location.href = "index.html"; 
+				return; 
+			}
 
-        async function loadGame() {
-            const params = new URLSearchParams(window.location.search);
-            const slug = params.get('slug');
-            if(!slug) { window.location.href = "index.html"; return; }
+			const { data: game, error } = await supabase.from('games').select('*').eq('slug', slug).single();
+			
+			if (error || !game) {
+				document.getElementById('game-title').innerText = "Jeu non trouvé";
+				document.getElementById('game-hero').style.display = 'none';
+				return;
+			}
 
-            const supabase = await getSupabase();
-            const { data: game, error } = await supabase.from('games').select('*').eq('slug', slug).single();
-            
-            if(error || !game) {
-                document.getElementById('game-title').innerText = "Jeu non trouvé";
-                document.getElementById('game-hero').style.display = 'none';
-                return;
-            }
+			document.title = game.title + " - aks6.ink";
+			document.getElementById('game-title').innerText = game.title;
+			document.getElementById('game-desc').innerText = game.description || "Aucune description fournie.";
+			document.getElementById('game-hero').style.backgroundImage = `url('${game.cover_image}')`;
+			document.getElementById('play-link').href = `./games/${game.slug}/`;
+		}
 
-            document.title = game.title + " - aks6.ink";
-            document.getElementById('game-title').innerText = game.title;
-            document.getElementById('game-desc').innerText = game.description;
-            document.getElementById('game-hero').style.backgroundImage = `url('${game.cover_image}')`;
-            document.getElementById('play-link').href = `./games/${game.slug}/`;
-        }
-
-        window.addEventListener('DOMContentLoaded', loadGame);
-    </script>
+		window.addEventListener('DOMContentLoaded', loadGame);
+	</script>
 </body>
 </html>

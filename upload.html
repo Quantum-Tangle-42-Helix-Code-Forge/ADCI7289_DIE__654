@@ -95,82 +95,69 @@
     </footer>
 
     <script type="module">
-        import { SUPABASE_URL, SUPABASE_KEY, CLOUDINARY_URL, CLOUDINARY_PRESET } from './js/config.js';
+		import { supabase, CLOUDINARY_URL, CLOUDINARY_PRESET } from './js/config.js';
 
-        function getSupabase() {
-            return new Promise(resolve => {
-                const check = () => {
-                    if (window.supabase) resolve(window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY));
-                    else setTimeout(check, 50);
-                };
-                check();
-            });
-        }
+		async function checkAdminAccess() {
+			const { data: { user } } = await supabase.auth.getUser();
+			if (!user) {
+				window.location.href = "login.html";
+				return;
+			}
 
-        async function checkAdminAccess() {
-            const supabase = await getSupabase();
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
-                window.location.href = "login.html";
-                return;
-            }
+			const { data: adminData, error } = await supabase
+				.from('admins')
+				.select('user_id')
+				.eq('user_id', user.id)
+				.maybeSingle();
 
-            const { data: adminData, error } = await supabase
-                .from('admins')
-                .select('user_id')
-                .eq('user_id', user.id)
-                .maybeSingle();
+			if (error || !adminData) {
+				alert("Accès refusé : vous n'êtes pas administrateur.");
+				window.location.href = "index.html";
+			}
+		}
+		
+		window.addEventListener('DOMContentLoaded', checkAdminAccess);
 
-            if (error || !adminData) {
-                alert("Accès refusé : vous n'êtes pas administrateur.");
-                window.location.href = "index.html";
-            }
-        }
-        
-        window.addEventListener('DOMContentLoaded', checkAdminAccess);
+		document.getElementById('uploadForm').onsubmit = async (e) => {
+			e.preventDefault();
+			const btn = document.getElementById('btn');
+			btn.disabled = true;
+			btn.innerText = "Téléversement en cours...";
 
-        document.getElementById('uploadForm').onsubmit = async (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('btn');
-            btn.disabled = true;
-            btn.innerText = "Téléversement en cours...";
+			try {
+				// Téléversement vers Cloudinary
+				const file = document.getElementById('coverFile').files[0];
+				const formData = new FormData();
+				formData.append('file', file);
+				formData.append('upload_preset', CLOUDINARY_PRESET);
 
-            try {
-                const supabase = await getSupabase();
+				const res = await fetch(CLOUDINARY_URL, { method: 'POST', body: formData });
+				const json = await res.json();
+				if (!json.secure_url) throw new Error("Échec du téléversement de l'image");
 
-                // Image vers Cloudinary
-                const file = document.getElementById('coverFile').files[0];
-                const formData = new FormData();
-                formData.append('file', file);
-                formData.append('upload_preset', CLOUDINARY_PRESET);
+				// Données vers Supabase
+				const isTestValue = document.getElementById('is_test').value === 'true';
 
-                const res = await fetch(CLOUDINARY_URL, { method: 'POST', body: formData });
-                const json = await res.json();
-                if (!json.secure_url) throw new Error("Échec du téléversement de l'image");
+				const { error } = await supabase.from('games').insert([{
+					title: document.getElementById('title').value,
+					slug: document.getElementById('slug').value.toLowerCase().trim().replace(/\s+/g, '-'),
+					description: document.getElementById('description').value,
+					short_text: document.getElementById('short_text').value,
+					genre: document.getElementById('genre').value,
+					price: parseFloat(document.getElementById('price').value),
+					cover_image: json.secure_url,
+					is_test: isTestValue
+				}]);
 
-                // Données vers Supabase
-                const isTestValue = document.getElementById('is_test').value === 'true';
-
-                const { error } = await supabase.from('games').insert([{
-                    title: document.getElementById('title').value,
-                    slug: document.getElementById('slug').value.toLowerCase().trim().replace(/\s+/g, '-'),
-                    description: document.getElementById('description').value,
-                    short_text: document.getElementById('short_text').value,
-                    genre: document.getElementById('genre').value,
-                    price: parseFloat(document.getElementById('price').value),
-                    cover_image: json.secure_url,
-                    is_test: isTestValue
-                }]);
-
-                if (error) throw error;
-                alert("Jeu enregistré avec succès !");
-                window.location.href = "index.html";
-            } catch (err) {
-                alert("Erreur : " + err.message);
-                btn.disabled = false;
-                btn.innerText = "ENREGISTRER LE JEU";
-            }
-        };
-    </script>
+				if (error) throw error;
+				alert("Jeu enregistré avec succès !");
+				window.location.href = "index.html";
+			} catch (err) {
+				alert("Erreur : " + err.message);
+				btn.disabled = false;
+				btn.innerText = "ENREGISTRER LE JEU";
+			}
+		};
+	</script>
 </body>
 </html>

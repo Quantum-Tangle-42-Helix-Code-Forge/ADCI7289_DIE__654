@@ -57,48 +57,36 @@
     </footer>
 
     <script type="module">
-        import { SUPABASE_URL, SUPABASE_KEY } from './js/config.js';
+		import { supabase } from './js/config.js';
 
-        function getSupabase() {
-            return new Promise(resolve => {
-                const check = () => {
-                    if (window.supabase) resolve(window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY));
-                    else setTimeout(check, 50);
-                };
-                check();
-            });
-        }
+		const loginForm = document.getElementById('loginForm');
+		const errorMsg = document.getElementById('error-msg');
+		const submitBtn = document.getElementById('submit-btn');
 
-        async function setupAuth() {
-            const supabase = await getSupabase();
-            const loginForm = document.getElementById('loginForm');
-            const errorMsg = document.getElementById('error-msg');
-            const submitBtn = document.getElementById('submit-btn');
+		loginForm.onsubmit = async (e) => {
+			e.preventDefault();
+			submitBtn.disabled = true;
+			submitBtn.innerText = "Connexion en cours...";
+			errorMsg.style.display = 'none';
 
-            loginForm.onsubmit = async (e) => {
-                e.preventDefault();
-                submitBtn.disabled = true;
-                submitBtn.innerText = "Connexion en cours...";
-                errorMsg.style.display = 'none';
+			const email = document.getElementById('email').value.trim();
+			const password = document.getElementById('password').value;
 
-                const { error } = await supabase.auth.signInWithPassword({
-                    email: document.getElementById('email').value,
-                    password: document.getElementById('password').value,
-                });
+			const { error } = await supabase.auth.signInWithPassword({
+				email,
+				password,
+			});
 
-                if (error) {
-                    errorMsg.innerText = error.message;
-                    errorMsg.style.display = 'block';
-                    submitBtn.disabled = false;
-                    submitBtn.innerText = "Se connecter";
-                } else {
-                    const urlParams = new URLSearchParams(window.location.search);
-                    window.location.href = urlParams.get('redirect_to') || 'index.html';
-                }
-            };
-        }
-
-        window.addEventListener('DOMContentLoaded', setupAuth);
-    </script>
+			if (error) {
+				errorMsg.innerText = error.message;
+				errorMsg.style.display = 'block';
+				submitBtn.disabled = false;
+				submitBtn.innerText = "Se connecter";
+			} else {
+				const urlParams = new URLSearchParams(window.location.search);
+				window.location.href = urlParams.get('redirect_to') || 'index.html';
+			}
+		};
+	</script>
 </body>
 </html>

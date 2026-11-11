@@ -82,52 +82,40 @@
     </footer>
 
     <script type="module">
-        import { SUPABASE_URL, SUPABASE_KEY } from './js/config.js';
+		import { supabase } from './js/config.js';
 
-        function getSupabase() {
-            return new Promise(resolve => {
-                const check = () => {
-                    if (window.supabase) resolve(window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY));
-                    else setTimeout(check, 50);
-                };
-                check();
-            });
-        }
+		async function checkProfile() {
+			const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-        async function checkProfile() {
-            const supabase = await getSupabase();
-            const { data: { user }, error: authError } = await supabase.auth.getUser();
+			if (authError || !user) {
+				window.location.href = "login.html";
+				return;
+			}
 
-            if (authError || !user) {
-                window.location.href = "login.html";
-                return;
-            }
+			document.getElementById('loader').style.display = 'none';
+			document.getElementById('profile-ui').style.display = 'block';
+			document.getElementById('user-name').innerText = user.user_metadata?.display_name || user.email.split('@')[0];
+			document.getElementById('user-email').innerText = user.email;
 
-            document.getElementById('loader').style.display = 'none';
-            document.getElementById('profile-ui').style.display = 'block';
-            document.getElementById('user-name').innerText = user.user_metadata?.display_name || user.email.split('@')[0];
-            document.getElementById('user-email').innerText = user.email;
+			// Vérification de la table admins
+			const { data: adminData, error: adminError } = await supabase
+				.from('admins')
+				.select('user_id')
+				.eq('user_id', user.id)
+				.maybeSingle();
 
-            // Vérification des droits administrateur
-            const { data: adminData, error: adminError } = await supabase
-                .from('admins')
-                .select('user_id')
-                .eq('user_id', user.id)
-                .maybeSingle();
+			if (adminData && !adminError) {
+				document.getElementById('admin-tag').style.display = 'inline-block';
+				document.getElementById('admin-panel').style.display = 'block';
+			}
+		}
 
-            if (adminData && !adminError) {
-                document.getElementById('admin-tag').style.display = 'inline-block';
-                document.getElementById('admin-panel').style.display = 'block';
-            }
-        }
+		document.getElementById('logout-btn').onclick = async () => {
+			await supabase.auth.signOut();
+			window.location.href = "index.html";
+		};
 
-        document.getElementById('logout-btn').onclick = async () => {
-            const supabase = await getSupabase();
-            await supabase.auth.signOut();
-            window.location.href = "index.html";
-        };
-
-        window.addEventListener('DOMContentLoaded', checkProfile);
-    </script>
+		window.addEventListener('DOMContentLoaded', checkProfile);
+	</script>
 </body>
 </html>
