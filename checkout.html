@@ -123,7 +123,7 @@
 						console.log("Joueur identique déjà connecté sur le site.");
 					} else {
 						statusText.innerText = "Bascule vers le compte du jeu...";
-						await supabase.auth.signOut();
+						await supabase.auth.signOut({ scope: 'local' });
 						await supabase.auth.setSession({
 							access_token: gameAccessToken,
 							refresh_token: gameRefreshToken
