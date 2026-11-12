@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="main.css">
+    <title>Administration des Jeux - aks6.ink</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+</head>
+<body>
+    <div class="header_spacer"></div>
+    <header class="primary_header">
+        <a class="header_logo" href="index.html">aks6.ink</a>
+        <div class="header_buttons">
+            <a class="header_button" href="browse.html">Parcourir</a>
+            <a class="header_button" href="upload.html" style="color:var(--accent-light);">+ Ajouter un jeu</a>
+        </div>
+        <div class="user_panel_widget">
+            <a href="index.html" class="panel_button">Accueil</a>
+        </div>
+    </header>
+
+    <main class="inner_column">
+        <div class="base_widget">
+            <h1 style="margin-top: 0; font-size: 24px;">🛠️ Gestion des Jeux</h1>
+            <p style="color: var(--text-muted); font-size: 14px;">Modifiez les métadonnées, remplacez les fichiers d'installation ou changez les images de couverture.</p>
+            
+            <div style="overflow-x: auto;">
+                <table class="admin_table">
+                    <thead>
+                        <tr>
+                            <th>Couverture</th>
+                            <th>Titre</th>
+                            <th>Slug</th>
+                            <th>Builds actifs</th>
+                            <th>Statut</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="games-tbody">
+                        <tr><td colspan="6" style="text-align:center;">Chargement des données...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal d'Édition -->
+    <div id="edit-modal" class="modal_overlay">
+        <div class="modal_card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h2 style="margin:0; font-size:20px; color:var(--accent-light);">Modifier le jeu</h2>
+                <button type="button" id="close-modal" style="background:transparent; border:none; color:white; font-size:22px; cursor:pointer;">&times;</button>
+            </div>
+
+            <form id="editForm">
+                <input type="hidden" id="edit_old_title">
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+                    <div>
+                        <div class="input_row">
+                            <label for="edit_title">Titre du jeu</label>
+                            <input type="text" id="edit_title" required>
+                        </div>
+                        <div class="input_row">
+                            <label for="edit_slug">Slug</label>
+                            <input type="text" id="edit_slug" required>
+                        </div>
+                        <div class="input_row">
+                            <label for="edit_genre">Genre</label>
+                            <select id="edit_genre">
+                                <option value="Action">Action</option>
+                                <option value="Aventure">Aventure</option>
+                                <option value="RPG">RPG</option>
+                                <option value="Puzzle">Puzzle</option>
+                                <option value="Plateforme">Plateforme</option>
+                                <option value="Autre">Autre</option>
+                            </select>
+                        </div>
+                        <div class="input_row">
+                            <label for="edit_price">Prix ($)</label>
+                            <input type="number" id="edit_price" step="0.01">
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="input_row">
+                            <label>Couverture actuelle</label>
+                            <div style="display:flex; gap:12px; align-items:center;">
+                                <img id="edit_cover_preview" src="" style="width:70px; height:50px; object-fit:cover; border-radius:4px; border:1px solid #444;">
+                                <input type="file" id="edit_cover_file" accept="image/*">
+                            </div>
+                            <small style="color:var(--text-muted);">Laissez vide pour conserver l'image actuelle.</small>
+                        </div>
+                        <div class="input_row">
+                            <label for="edit_is_test">Statut</label>
+                            <select id="edit_is_test">
+                                <option value="false">🚀 Public (En ligne)</option>
+                                <option value="true">🧪 Phase de test (Admin)</option>
+                            </select>
+                        </div>
+                        <div class="input_row">
+                            <label for="edit_short_text">Accroche courte</label>
+                            <input type="text" id="edit_short_text">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="input_row" style="margin-top:12px;">
+                    <label for="edit_description">Description</label>
+                    <textarea id="edit_description" style="height: 80px;"></textarea>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 20px 0;">
+
+                <h3 style="font-size:16px;">📦 Fichiers et Installateurs</h3>
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px;">
+                    <!-- Windows -->
+                    <div style="background:var(--bg-input); padding:10px; border-radius:4px; border:1px solid #333;">
+                        <div class="checkbox_row">
+                            <input type="checkbox" id="edit_has_windows">
+                            <label for="edit_has_windows" style="margin:0;">🪟 Windows</label>
+                        </div>
+                        <input type="file" id="edit_file_windows" style="margin-top:4px;">
+                        <input type="url" id="edit_url_windows" placeholder="URL du fichier" style="margin-top:4px; font-size:12px;">
+                    </div>
+                    <!-- Linux -->
+                    <div style="background:var(--bg-input); padding:10px; border-radius:4px; border:1px solid #333;">
+                        <div class="checkbox_row">
+                            <input type="checkbox" id="edit_has_linux">
+                            <label for="edit_has_linux" style="margin:0;">🐧 Linux</label>
+                        </div>
+                        <input type="file" id="edit_file_linux" style="margin-top:4px;">
+                        <input type="url" id="edit_url_linux" placeholder="URL du fichier" style="margin-top:4px; font-size:12px;">
+                    </div>
+                    <!-- macOS -->
+                    <div style="background:var(--bg-input); padding:10px; border-radius:4px; border:1px solid #333;">
+                        <div class="checkbox_row">
+                            <input type="checkbox" id="edit_has_mac">
+                            <label for="edit_has_mac" style="margin:0;">🍎 macOS</label>
+                        </div>
+                        <input type="file" id="edit_file_mac" style="margin-top:4px;">
+                        <input type="url" id="edit_url_mac" placeholder="URL du fichier" style="margin-top:4px; font-size:12px;">
+                    </div>
+                    <!-- Android -->
+                    <div style="background:var(--bg-input); padding:10px; border-radius:4px; border:1px solid #333;">
+                        <div class="checkbox_row">
+                            <input type="checkbox" id="edit_has_android">
+                            <label for="edit_has_android" style="margin:0;">🤖 Android (.apk)</label>
+                        </div>
+                        <input type="file" id="edit_file_android" style="margin-top:4px;">
+                        <input type="url" id="edit_url_android" placeholder="URL du fichier" style="margin-top:4px; font-size:12px;">
+                    </div>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 20px 0;">
+
+                <h3 style="font-size:16px;">🛒 Liens Plateformes / Stores</h3>
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                    <input type="url" id="edit_link_steam" placeholder="Lien Steam">
+                    <input type="url" id="edit_link_playstore" placeholder="Lien Google Play">
+                    <input type="url" id="edit_link_appstore" placeholder="Lien App Store">
+                    <input type="url" id="edit_link_itchio" placeholder="Lien Itch.io">
+                </div>
+
+                <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:20px;">
+                    <button type="button" class="button" style="background:#444;" id="btn-cancel">Annuler</button>
+                    <button type="submit" class="button" id="btn-save">Enregistrer les modifications</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { supabase, CLOUDINARY_URL, CLOUDINARY_PRESET } from './js/config.js';
+
+        let currentGames = [];
+
+        async function init() {
+            // Vérification Admin
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) { window.location.href = "login.html"; return; }
+
+            const { data: adminData } = await supabase
+                .from('admins')
+                .select('user_id')
+                .eq('user_id', user.id)
+                .maybeSingle();
+
+            if (!adminData) {
+                alert("Accès réservé aux administrateurs.");
+                window.location.href = "index.html";
+                return;
+            }
+
+            loadGamesTable();
+        }
+
+        async function loadGamesTable() {
+            const { data: games, error } = await supabase.from('games').select('*').order('created_at', { ascending: false });
+            const tbody = document.getElementById('games-tbody');
+
+            if (error || !games) {
+                tbody.innerHTML = `<tr><td colspan="6" style="color:var(--accent-light);">Erreur : ${error?.message}</td></tr>`;
+                return;
+            }
+
+            currentGames = games;
+
+            if (games.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">Aucun jeu dans la base.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = games.map(g => {
+                const builds = [];
+                if (g.has_windows) builds.push('🪟');
+                if (g.has_linux) builds.push('🐧');
+                if (g.has_mac) builds.push('🍎');
+                if (g.has_android) builds.push('🤖');
+
+                return `
+                    <tr>
+                        <td><img src="${g.cover_image}" width="50" height="35" style="object-fit:cover; border-radius:3px;"></td>
+                        <td><strong>${g.title}</strong></td>
+                        <td style="color:var(--text-muted);">${g.slug}</td>
+                        <td>${builds.join(' ') || '<span style="color:#666;">Aucun</span>'}</td>
+                        <td>${g.is_test ? '<span style="color:#f59f00;">🧪 Test</span>' : '<span style="color:#51cf66;">🚀 Public</span>'}</td>
+                        <td>
+                            <button class="button" style="padding:4px 10px; font-size:12px; min-height:auto;" onclick="window.openEdit('${g.slug}')">Éditer</button>
+                            <button class="button" style="padding:4px 10px; font-size:12px; min-height:auto; background:#660000;" onclick="window.deleteGame('${g.title}')">Suppr</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Upload build vers Supabase Storage
+        async function uploadBuildFile(fileInput, slug, osName) {
+            const file = fileInput.files[0];
+            if (!file) return null;
+            const ext = file.name.split('.').pop();
+            const filePath = `${slug}/${slug}-${osName}-${Date.now()}.${ext}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('game-builds')
+                .upload(filePath, file, { upsert: true });
+
+            if (uploadError) throw new Error(`Erreur upload build ${osName}: ` + uploadError.message);
+
+            const { data } = supabase.storage.from('game-builds').getPublicUrl(filePath);
+            return data.publicUrl;
+        }
+
+        window.openEdit = (slug) => {
+            const game = currentGames.find(g => g.slug === slug);
+            if (!game) return;
+
+            document.getElementById('edit_old_title').value = game.title;
+            document.getElementById('edit_title').value = game.title;
+            document.getElementById('edit_slug').value = game.slug;
+            document.getElementById('edit_genre').value = game.genre || 'Action';
+            document.getElementById('edit_price').value = game.price || 0;
+            document.getElementById('edit_short_text').value = game.short_text || '';
+            document.getElementById('edit_description').value = game.description || '';
+            document.getElementById('edit_is_test').value = String(game.is_test);
+            document.getElementById('edit_cover_preview').src = game.cover_image;
+            document.getElementById('edit_cover_file').value = '';
+
+            document.getElementById('edit_has_windows').checked = !!game.has_windows;
+            document.getElementById('edit_url_windows').value = game.download_windows || '';
+            document.getElementById('edit_has_linux').checked = !!game.has_linux;
+            document.getElementById('edit_url_linux').value = game.download_linux || '';
+            document.getElementById('edit_has_mac').checked = !!game.has_mac;
+            document.getElementById('edit_url_mac').value = game.download_mac || '';
+            document.getElementById('edit_has_android').checked = !!game.has_android;
+            document.getElementById('edit_url_android').value = game.download_android || '';
+
+            document.getElementById('edit_link_steam').value = game.link_steam || '';
+            document.getElementById('edit_link_playstore').value = game.link_playstore || '';
+            document.getElementById('edit_link_appstore').value = game.link_appstore || '';
+            document.getElementById('edit_link_itchio').value = game.link_itchio || '';
+
+            document.getElementById('edit-modal').style.display = 'flex';
+        };
+
+        const closeModal = () => document.getElementById('edit-modal').style.display = 'none';
+        document.getElementById('close-modal').onclick = closeModal;
+        document.getElementById('btn-cancel').onclick = closeModal;
+
+        // Soumission du formulaire d'édition
+        document.getElementById('editForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btn-save');
+            btn.disabled = true;
+            btn.innerText = "Sauvegarde...";
+
+            try {
+                const oldTitle = document.getElementById('edit_old_title').value;
+                const slug = document.getElementById('edit_slug').value.trim();
+
+                // 1. Remplacement de l'image de couverture si un nouveau fichier a été sélectionné
+                let finalCover = document.getElementById('edit_cover_preview').src;
+                const coverFile = document.getElementById('edit_cover_file').files[0];
+                if (coverFile) {
+                    const formData = new FormData();
+                    formData.append('file', coverFile);
+                    formData.append('upload_preset', CLOUDINARY_PRESET);
+
+                    const res = await fetch(CLOUDINARY_URL, { method: 'POST', body: formData });
+                    const json = await res.json();
+                    if (!json.secure_url) throw new Error("Échec de la mise à jour Cloudinary");
+                    finalCover = json.secure_url;
+                }
+
+                // 2. Traitement des fichiers builds uploadés
+                let dlWin = document.getElementById('edit_url_windows').value.trim();
+                const newWinFile = await uploadBuildFile(document.getElementById('edit_file_windows'), slug, 'windows');
+                if (newWinFile) dlWin = newWinFile;
+
+                let dlLinux = document.getElementById('edit_url_linux').value.trim();
+                const newLinuxFile = await uploadBuildFile(document.getElementById('edit_file_linux'), slug, 'linux');
+                if (newLinuxFile) dlLinux = newLinuxFile;
+
+                let dlMac = document.getElementById('edit_url_mac').value.trim();
+                const newMacFile = await uploadBuildFile(document.getElementById('edit_file_mac'), slug, 'mac');
+                if (newMacFile) dlMac = newMacFile;
+
+                let dlAndroid = document.getElementById('edit_url_android').value.trim();
+                const newAndroidFile = await uploadBuildFile(document.getElementById('edit_file_android'), slug, 'android');
+                if (newAndroidFile) dlAndroid = newAndroidFile;
+
+                // 3. Mise à jour Supabase
+                const { error } = await supabase.from('games').update({
+                    title: document.getElementById('edit_title').value.trim(),
+                    slug: slug,
+                    description: document.getElementById('edit_description').value,
+                    short_text: document.getElementById('edit_short_text').value,
+                    genre: document.getElementById('edit_genre').value,
+                    price: parseFloat(document.getElementById('edit_price').value) || 0,
+                    cover_image: finalCover,
+                    is_test: document.getElementById('edit_is_test').value === 'true',
+                    has_windows: document.getElementById('edit_has_windows').checked,
+                    download_windows: dlWin || null,
+                    has_linux: document.getElementById('edit_has_linux').checked,
+                    download_linux: dlLinux || null,
+                    has_mac: document.getElementById('edit_has_mac').checked,
+                    download_mac: dlMac || null,
+                    has_android: document.getElementById('edit_has_android').checked,
+                    download_android: dlAndroid || null,
+                    link_steam: document.getElementById('edit_link_steam').value.trim() || null,
+                    link_playstore: document.getElementById('edit_link_playstore').value.trim() || null,
+                    link_appstore: document.getElementById('edit_link_appstore').value.trim() || null,
+                    link_itchio: document.getElementById('edit_link_itchio').value.trim() || null
+                }).eq('title', oldTitle);
+
+                if (error) throw error;
+
+                alert("Jeu mis à jour avec succès !");
+                closeModal();
+                loadGamesTable();
+            } catch (err) {
+                alert("Erreur lors de la mise à jour : " + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Enregistrer les modifications";
+            }
+        };
+
+        window.deleteGame = async (title) => {
+            if (!confirm(`Êtes-vous sûr de vouloir supprimer le jeu "${title}" ? Cette action est irréversible.`)) return;
+
+            const { error } = await supabase.from('games').delete().eq('title', title);
+            if (error) {
+                alert("Erreur de suppression : " + error.message);
+            } else {
+                alert("Jeu supprimé.");
+                loadGamesTable();
+            }
+        };
+
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

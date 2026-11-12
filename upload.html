@@ -10,7 +10,6 @@
     <link rel="stylesheet" href="main.css">
     <title>Ajouter un projet - aks6.ink</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
-    <meta name="google-adsense-account" content="ca-pub-4741766423982776">
 </head>
 <body>
     <div class="header_spacer"></div>
@@ -18,15 +17,16 @@
         <a class="header_logo" href="index.html">aks6.ink</a>
         <div class="header_buttons">
             <a class="header_button" href="browse.html">Parcourir</a>
+            <a class="header_button" href="admin-games.html" style="color:var(--accent-light);">Gérer les jeux</a>
         </div>
         <div class="user_panel_widget">
-            <a href="user_account.html" class="panel_button">Mon Tableau de bord</a>
+            <a href="index.html" class="panel_button">Accueil</a>
         </div>
     </header>
 
-    <main class="inner_column" style="max-width: 900px;">
+    <main class="inner_column" style="max-width: 960px;">
         <div class="base_widget">
-            <h1 style="color: var(--accent-light); margin-top: 0; font-size: 24px;">🚀 Lier un nouveau projet</h1>
+            <h1 style="color: var(--accent-light); margin-top: 0; font-size: 24px;">🚀 Lier et publier un nouveau jeu</h1>
             
             <form id="uploadForm">
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
@@ -77,15 +77,85 @@
                         </div>
                     </div>
                 </div>
-                <button type="submit" id="btn" class="button" style="width: 100%; margin-top: 15px; font-size: 16px;">ENREGISTRER LE JEU</button>
+
+                <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 25px 0;">
+
+                <h2 style="font-size: 18px; margin-bottom: 8px;">📦 Fichiers téléchargeables (Installateurs)</h2>
+                <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 20px;">
+                    Cochez les systèmes pris en charge. Vous pouvez téléverser directement un fichier (vers Supabase Storage) OU saisir un lien externe existant.
+                </p>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+                    <!-- Windows -->
+                    <div class="base_widget" style="margin-top:0; padding:16px;">
+                        <div class="checkbox_row">
+                            <input type="checkbox" id="has_windows">
+                            <label for="has_windows" style="margin:0; font-size:15px; color:#fff;">🪟 Version Windows (.exe, .zip)</label>
+                        </div>
+                        <input type="file" id="file_windows" style="margin-top:8px;">
+                        <input type="url" id="url_windows" placeholder="Ou URL directe (ex: https://...)" style="margin-top:8px;">
+                    </div>
+
+                    <!-- Linux -->
+                    <div class="base_widget" style="margin-top:0; padding:16px;">
+                        <div class="checkbox_row">
+                            <input type="checkbox" id="has_linux">
+                            <label for="has_linux" style="margin:0; font-size:15px; color:#fff;">🐧 Version Linux (.AppImage, .tar.gz)</label>
+                        </div>
+                        <input type="file" id="file_linux" style="margin-top:8px;">
+                        <input type="url" id="url_linux" placeholder="Ou URL directe" style="margin-top:8px;">
+                    </div>
+
+                    <!-- macOS -->
+                    <div class="base_widget" style="margin-top:0; padding:16px;">
+                        <div class="checkbox_row">
+                            <input type="checkbox" id="has_mac">
+                            <label for="has_mac" style="margin:0; font-size:15px; color:#fff;">🍎 Version macOS (.dmg, .zip)</label>
+                        </div>
+                        <input type="file" id="file_mac" style="margin-top:8px;">
+                        <input type="url" id="url_mac" placeholder="Ou URL directe" style="margin-top:8px;">
+                    </div>
+
+                    <!-- Android -->
+                    <div class="base_widget" style="margin-top:0; padding:16px;">
+                        <div class="checkbox_row">
+                            <input type="checkbox" id="has_android">
+                            <label for="has_android" style="margin:0; font-size:15px; color:#fff;">🤖 Version Android (.apk)</label>
+                        </div>
+                        <input type="file" id="file_android" style="margin-top:8px;">
+                        <input type="url" id="url_android" placeholder="Ou URL directe" style="margin-top:8px;">
+                    </div>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 25px 0;">
+
+                <h2 style="font-size: 18px; margin-bottom: 8px;">🛒 Liens vers les plateformes & Stores</h2>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
+                    <div class="input_row">
+                        <label for="link_steam">Steam</label>
+                        <input type="url" id="link_steam" placeholder="https://store.steampowered.com/app/...">
+                    </div>
+                    <div class="input_row">
+                        <label for="link_playstore">Google Play Store</label>
+                        <input type="url" id="link_playstore" placeholder="https://play.google.com/store/apps/...">
+                    </div>
+                    <div class="input_row">
+                        <label for="link_appstore">Apple App Store</label>
+                        <input type="url" id="link_appstore" placeholder="https://apps.apple.com/app/...">
+                    </div>
+                    <div class="input_row">
+                        <label for="link_itchio">Itch.io</label>
+                        <input type="url" id="link_itchio" placeholder="https://votre-jeu.itch.io/...">
+                    </div>
+                </div>
+
+                <button type="submit" id="btn" class="button" style="width: 100%; margin-top: 20px; font-size: 16px;">ENREGISTRER LE JEU</button>
             </form>
         </div>
     </main>
 
     <footer class="footer">
-        <div class="footer_copy">
-            © 2026 <strong>Sekhmetis</strong> - Tous droits réservés.
-        </div>
+        <div class="footer_copy">© 2026 <strong>Sekhmetis</strong> - Tous droits réservés.</div>
         <div class="footer_links">
             <a href="legal_pages.html#confidentialite">Politique de Confidentialité</a>
             <a href="legal_pages.html#apropos">À Propos</a>
@@ -95,69 +165,115 @@
     </footer>
 
     <script type="module">
-		import { supabase, CLOUDINARY_URL, CLOUDINARY_PRESET } from './js/config.js';
+        import { supabase, CLOUDINARY_URL, CLOUDINARY_PRESET } from './js/config.js';
 
-		async function checkAdminAccess() {
-			const { data: { user } } = await supabase.auth.getUser();
-			if (!user) {
-				window.location.href = "login.html";
-				return;
-			}
+        async function checkAdminAccess() {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) { window.location.href = "login.html"; return; }
 
-			const { data: adminData, error } = await supabase
-				.from('admins')
-				.select('user_id')
-				.eq('user_id', user.id)
-				.maybeSingle();
+            const { data: adminData } = await supabase
+                .from('admins')
+                .select('user_id')
+                .eq('user_id', user.id)
+                .maybeSingle();
 
-			if (error || !adminData) {
-				alert("Accès refusé : vous n'êtes pas administrateur.");
-				window.location.href = "index.html";
-			}
-		}
-		
-		window.addEventListener('DOMContentLoaded', checkAdminAccess);
+            if (!adminData) {
+                alert("Accès refusé : vous n'êtes pas administrateur.");
+                window.location.href = "index.html";
+            }
+        }
+        window.addEventListener('DOMContentLoaded', checkAdminAccess);
 
-		document.getElementById('uploadForm').onsubmit = async (e) => {
-			e.preventDefault();
-			const btn = document.getElementById('btn');
-			btn.disabled = true;
-			btn.innerText = "Téléversement en cours...";
+        // Upload build vers Supabase Storage
+        async function uploadBuildFile(fileInput, slug, osName) {
+            const file = fileInput.files[0];
+            if (!file) return null;
+            const ext = file.name.split('.').pop();
+            const filePath = `${slug}/${slug}-${osName}-${Date.now()}.${ext}`;
 
-			try {
-				// Téléversement vers Cloudinary
-				const file = document.getElementById('coverFile').files[0];
-				const formData = new FormData();
-				formData.append('file', file);
-				formData.append('upload_preset', CLOUDINARY_PRESET);
+            const { error: uploadError } = await supabase.storage
+                .from('game-builds')
+                .upload(filePath, file, { upsert: true });
 
-				const res = await fetch(CLOUDINARY_URL, { method: 'POST', body: formData });
-				const json = await res.json();
-				if (!json.secure_url) throw new Error("Échec du téléversement de l'image");
+            if (uploadError) throw new Error(`Erreur upload build ${osName}: ` + uploadError.message);
 
-				// Données vers Supabase
-				const isTestValue = document.getElementById('is_test').value === 'true';
+            const { data } = supabase.storage.from('game-builds').getPublicUrl(filePath);
+            return data.publicUrl;
+        }
 
-				const { error } = await supabase.from('games').insert([{
-					title: document.getElementById('title').value,
-					slug: document.getElementById('slug').value.toLowerCase().trim().replace(/\s+/g, '-'),
-					description: document.getElementById('description').value,
-					short_text: document.getElementById('short_text').value,
-					genre: document.getElementById('genre').value,
-					price: parseFloat(document.getElementById('price').value),
-					cover_image: json.secure_url,
-					is_test: isTestValue
-				}]);
+        document.getElementById('uploadForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btn');
+            btn.disabled = true;
+            btn.innerText = "Téléversement en cours...";
 
-				if (error) throw error;
-				alert("Jeu enregistré avec succès !");
-				window.location.href = "index.html";
-			} catch (err) {
-				alert("Erreur : " + err.message);
-				btn.disabled = false;
-				btn.innerText = "ENREGISTRER LE JEU";
-			}
-		};
-	</script>
+            try {
+                const slug = document.getElementById('slug').value.toLowerCase().trim().replace(/\s+/g, '-');
+
+                // 1. Image vers Cloudinary
+                const file = document.getElementById('coverFile').files[0];
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('upload_preset', CLOUDINARY_PRESET);
+
+                const res = await fetch(CLOUDINARY_URL, { method: 'POST', body: formData });
+                const json = await res.json();
+                if (!json.secure_url) throw new Error("Échec du téléversement de la couverture sur Cloudinary.");
+
+                // 2. Gestion des fichiers téléchargeables
+                const hasWin = document.getElementById('has_windows').checked;
+                let dlWin = document.getElementById('url_windows').value.trim();
+                const uploadedWin = await uploadBuildFile(document.getElementById('file_windows'), slug, 'windows');
+                if (uploadedWin) dlWin = uploadedWin;
+
+                const hasLinux = document.getElementById('has_linux').checked;
+                let dlLinux = document.getElementById('url_linux').value.trim();
+                const uploadedLinux = await uploadBuildFile(document.getElementById('file_linux'), slug, 'linux');
+                if (uploadedLinux) dlLinux = uploadedLinux;
+
+                const hasMac = document.getElementById('has_mac').checked;
+                let dlMac = document.getElementById('url_mac').value.trim();
+                const uploadedMac = await uploadBuildFile(document.getElementById('file_mac'), slug, 'mac');
+                if (uploadedMac) dlMac = uploadedMac;
+
+                const hasAndroid = document.getElementById('has_android').checked;
+                let dlAndroid = document.getElementById('url_android').value.trim();
+                const uploadedAndroid = await uploadBuildFile(document.getElementById('file_android'), slug, 'android');
+                if (uploadedAndroid) dlAndroid = uploadedAndroid;
+
+                // 3. Insertion Supabase
+                const { error } = await supabase.from('games').insert([{
+                    title: document.getElementById('title').value.trim(),
+                    slug: slug,
+                    description: document.getElementById('description').value,
+                    short_text: document.getElementById('short_text').value,
+                    genre: document.getElementById('genre').value,
+                    price: parseFloat(document.getElementById('price').value) || 0,
+                    cover_image: json.secure_url,
+                    is_test: document.getElementById('is_test').value === 'true',
+                    has_windows: hasWin,
+                    download_windows: dlWin || null,
+                    has_linux: hasLinux,
+                    download_linux: dlLinux || null,
+                    has_mac: hasMac,
+                    download_mac: dlMac || null,
+                    has_android: hasAndroid,
+                    download_android: dlAndroid || null,
+                    link_steam: document.getElementById('link_steam').value.trim() || null,
+                    link_playstore: document.getElementById('link_playstore').value.trim() || null,
+                    link_appstore: document.getElementById('link_appstore').value.trim() || null,
+                    link_itchio: document.getElementById('link_itchio').value.trim() || null
+                }]);
+
+                if (error) throw error;
+                alert("Jeu enregistré avec succès !");
+                window.location.href = "game.html?slug=" + slug;
+            } catch (err) {
+                alert("Erreur : " + err.message);
+                btn.disabled = false;
+                btn.innerText = "ENREGISTRER LE JEU";
+            }
+        };
+    </script>
 </body>
 </html>
