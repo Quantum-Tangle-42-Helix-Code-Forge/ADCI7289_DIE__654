@@ -62,8 +62,33 @@
     <script type="module">
 		import { supabase } from './js/config.js';
 
+		// Fonction d'échappement XSS
+		function escapeHtml(str) {
+			if (!str) return '';
+			return String(str)
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;')
+				.replace(/"/g, '&quot;')
+				.replace(/'/g, '&#039;');
+		}
+
+		// Validation des URLs de couverture
+		function safeMediaUrl(url) {
+			if (!url || typeof url !== 'string') return '';
+			if (url.startsWith('https://') || url.startsWith('http://') || url.startsWith('./')) {
+				return url;
+			}
+			return '';
+		}
+
+		function optimizeCloudinary(url, width = 400) {
+			if (!url || typeof url !== 'string') return '';
+			if (!url.includes('cloudinary.com') || url.includes('/f_auto')) return url;
+			return url.replace('/upload/', `/upload/f_auto,q_auto,w_${width}/`);
+		}
+
 		async function init() {
-			// 1. Détection de Session & Rôle Administrateur
 			const { data: { user } } = await supabase.auth.getUser();
 			const panel = document.getElementById('user-panel');
 			let isAdmin = false;
@@ -77,8 +102,11 @@
 
 				isAdmin = adminData !== null;
 
+				// Protection du nom d'affichage contre XSS
+				const safeDisplayName = escapeHtml(user.user_metadata?.display_name || 'Compte');
+
 				panel.innerHTML = `
-					<a href="user_account.html" class="panel_button">${user.user_metadata?.display_name || 'Compte'}</a>
+					<a href="user_account.html" class="panel_button">${safeDisplayName}</a>
 					${isAdmin ? '<a href="upload.html" class="panel_button" style="color:var(--accent-light); border-color:var(--accent-light);">Ajouter</a>' : ''}
 					<button type="button" id="logout-btn" class="panel_button">Déconnexion</button>
 				`;
@@ -89,7 +117,6 @@
 				};
 			}
 
-			// 2. Chargement des jeux
 			const { data: games, error } = await supabase
 				.from('games')
 				.select('*')
@@ -109,20 +136,40 @@
 				return;
 			}
 
-			grid.innerHTML = games.map(game => `
-				<article class="game_cell">
-					<div class="bordered">
-						<a href="game.html?slug=${game.slug}" aria-label="Jouer à ${game.title}">
-							<img src="${game.cover_image}" alt="Aperçu du jeu ${game.title}" width="315" height="200" loading="lazy">
-						</a>
-					</div>
-					<div class="label">
-						<span class="price_tag">${game.price == 0 ? 'Gratuit' : game.price + ' $'}</span>
-						<a class="title" href="game.html?slug=${game.slug}">${game.title}</a>
-						<div class="sub">${game.short_text || ''}</div>
-					</div>
-				</article>
-			`).join('');
+			grid.innerHTML = games.map((game, index) => {
+				let loadingAttributes = '';
+				if (index === 0) {
+					loadingAttributes = 'fetchpriority="high"';
+				} else if (index < 3) {
+					loadingAttributes = '';
+				} else {
+					loadingAttributes = 'loading="lazy"';
+				}
+
+				const safeTitle = escapeHtml(game.title);
+				const safeSlug = encodeURIComponent(game.slug);
+				const safeShort = escapeHtml(game.short_text || '');
+				const safeImg = escapeHtml(optimizeCloudinary(safeMediaUrl(game.cover_image), 400));
+				const safePrice = Number(game.price) || 0;
+
+				return `
+					<article class="game_cell">
+						<div class="bordered">
+							<a href="game.html?slug=${safeSlug}" aria-label="Jouer à ${safeTitle}">
+								<img src="${safeImg}" 
+									 alt="Aperçu du jeu ${safeTitle}" 
+									 width="315" height="200" 
+									 ${loadingAttributes}>
+							</a>
+						</div>
+						<div class="label">
+							<span class="price_tag">${safePrice === 0 ? 'Gratuit' : safePrice + ' $'}</span>
+							<a class="title" href="game.html?slug=${safeSlug}">${safeTitle}</a>
+							<div class="sub">${safeShort}</div>
+						</div>
+					</article>
+				`;
+			}).join('');
 		}
 
 		window.addEventListener('DOMContentLoaded', init);

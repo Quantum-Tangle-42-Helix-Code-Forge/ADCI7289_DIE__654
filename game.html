@@ -95,97 +95,118 @@
     </footer>
 
     <script type="module">
-        import { supabase } from './js/config.js';
+		import { supabase } from './js/config.js';
 
-        async function loadGame() {
-            const params = new URLSearchParams(window.location.search);
-            const slug = params.get('slug');
-            if (!slug) { 
-                window.location.href = "index.html"; 
-                return; 
-            }
+		// Optimisation Cloudinary automatique (WebP/AVIF auto + redimensionnement)
+		function optimizeCloudinary(url, width = 400) {
+			if (!url || typeof url !== 'string') return url;
+			if (!url.includes('cloudinary.com') || url.includes('/f_auto')) return url;
+			return url.replace('/upload/', `/upload/f_auto,q_auto,w_${width}/`);
+		}
 
-            const { data: game, error } = await supabase.from('games').select('*').eq('slug', slug).single();
-            
-            if (error || !game) {
-                document.getElementById('game-title').innerText = "Jeu non trouvé";
-                document.getElementById('game-hero').style.display = 'none';
-                return;
-            }
+		async function loadGame() {
+			const params = new URLSearchParams(window.location.search);
+			const slug = params.get('slug');
+			if (!slug) { 
+				window.location.href = "index.html"; 
+				return; 
+			}
 
-            document.title = game.title + " - aks6.ink";
-            document.getElementById('game-title').innerText = game.title;
-            document.getElementById('game-desc').innerText = game.description || "Aucune description fournie.";
-            document.getElementById('game-hero').style.backgroundImage = `url('${game.cover_image}')`;
-            document.getElementById('play-link').href = `./games/${game.slug}/`;
+			const { data: game, error } = await supabase.from('games').select('*').eq('slug', slug).single();
+			
+			if (error || !game) {
+				document.getElementById('game-title').innerText = "Jeu non trouvé";
+				document.getElementById('game-hero').style.display = 'none';
+				return;
+			}
 
-            // 1. Affichage dynamique des boutons de téléchargement
-            const dlContainer = document.getElementById('download-buttons');
-            let dlCount = 0;
+			// Métadonnées & affichage principal
+			document.title = game.title + " - aks6.ink";
+			document.getElementById('game-title').innerText = game.title;
+			document.getElementById('game-desc').innerText = game.description || "Aucune description fournie.";
+			
+			// Image optimisée Cloudinary pour l'en-tête (une seule ligne propre)
+			document.getElementById('game-hero').style.backgroundImage = `url('${optimizeCloudinary(game.cover_image, 1000)}')`;
+			document.getElementById('play-link').href = `./games/${game.slug}/`;
 
-            const downloads = [
-                { enabled: game.has_windows, url: game.download_windows, os: 'Windows', icon: '🪟', note: '.exe / .zip' },
-                { enabled: game.has_linux, url: game.download_linux, os: 'Linux', icon: '🐧', note: '.AppImage / tar' },
-                { enabled: game.has_mac, url: game.download_mac, os: 'macOS', icon: '🍎', note: '.dmg / .zip' },
-                { enabled: game.has_android, url: game.download_android, os: 'Android', icon: '🤖', note: '.apk' },
-            ];
+			// Validation sécurisée des liens externes et protocoles
+			function safeUrl(url) {
+				if (!url || typeof url !== 'string') return null;
+				const trimmed = url.trim();
+				// N'autorise strictement que http, https et les chemins relatifs locaux
+				if (trimmed.startsWith('https://') || trimmed.startsWith('http://') || trimmed.startsWith('./') || trimmed.startsWith('/')) {
+					return trimmed;
+				}
+				return null; // Bloque javascript:, data:, vbscript:, etc.
+			}
 
-            downloads.forEach(dl => {
-                if (dl.enabled && dl.url) {
-                    dlCount++;
-                    const card = document.createElement('a');
-                    card.className = 'download_card';
-                    card.href = dl.url;
-                    card.target = '_blank';
-                    card.rel = 'noopener noreferrer';
-                    card.innerHTML = `
-                        <div class="download_info">
-                            <span class="os_icon">${dl.icon}</span>
-                            <div>
-                                <strong style="display:block;">${dl.os}</strong>
-                                <span style="font-size:12px; color:var(--text-muted);">${dl.note}</span>
-                            </div>
-                        </div>
-                        <span class="button" style="padding:6px 14px; min-height:auto; font-size:13px;">Télécharger</span>
-                    `;
-                    dlContainer.appendChild(card);
-                }
-            });
+			// 1. Affichage dynamique des boutons de téléchargement
+			const dlContainer = document.getElementById('download-buttons');
+			let dlCount = 0;
 
-            if (dlCount > 0) {
-                document.getElementById('download-section').style.display = 'block';
-            }
+			const downloads = [
+				{ enabled: game.has_windows, url: safeUrl(game.download_windows), os: 'Windows', icon: '🪟', note: '.exe / .zip' },
+				{ enabled: game.has_linux, url: safeUrl(game.download_linux), os: 'Linux', icon: '🐧', note: '.AppImage / tar' },
+				{ enabled: game.has_mac, url: safeUrl(game.download_mac), os: 'macOS', icon: '🍎', note: '.dmg / .zip' },
+				{ enabled: game.has_android, url: safeUrl(game.download_android), os: 'Android', icon: '🤖', note: '.apk' },
+			];
 
-            // 2. Affichage dynamique des plateformes / Stores
-            const storeContainer = document.getElementById('store-buttons');
-            let storeCount = 0;
+			downloads.forEach(dl => {
+				if (dl.enabled && dl.url) {
+					dlCount++;
+					const card = document.createElement('a');
+					card.className = 'download_card';
+					card.href = dl.url; // Assignation native sécurisée via safeUrl
+					card.target = '_blank';
+					card.rel = 'noopener noreferrer';
+					card.innerHTML = `
+						<div class="download_info">
+							<span class="os_icon">${dl.icon}</span>
+							<div>
+								<strong style="display:block;">${dl.os}</strong>
+								<span style="font-size:12px; color:var(--text-muted);">${dl.note}</span>
+							</div>
+						</div>
+						<span class="button" style="padding:6px 14px; min-height:auto; font-size:13px;">Télécharger</span>
+					`;
+					dlContainer.appendChild(card);
+				}
+			});
 
-            const stores = [
-                { url: game.link_steam, name: 'Steam', icon: '🎮' },
-                { url: game.link_playstore, name: 'Google Play', icon: '📱' },
-                { url: game.link_appstore, name: 'App Store', icon: '🍏' },
-                { url: game.link_itchio, name: 'Itch.io', icon: '🕹️' }
-            ];
+			if (dlCount > 0) {
+				document.getElementById('download-section').style.display = 'block';
+			}
 
-            stores.forEach(store => {
-                if (store.url) {
-                    storeCount++;
-                    const btn = document.createElement('a');
-                    btn.className = 'store_button';
-                    btn.href = store.url;
-                    btn.target = '_blank';
-                    btn.rel = 'noopener noreferrer';
-                    btn.innerHTML = `${store.icon} Voir sur ${store.name}`;
-                    storeContainer.appendChild(btn);
-                }
-            });
+			// 2. Affichage dynamique des plateformes / Stores
+			const storeContainer = document.getElementById('store-buttons');
+			let storeCount = 0;
 
-            if (storeCount > 0) {
-                document.getElementById('store-section').style.display = 'block';
-            }
-        }
+			const stores = [
+				{ url: safeUrl(game.link_steam), name: 'Steam', icon: '🎮' },
+				{ url: safeUrl(game.link_playstore), name: 'Google Play', icon: '📱' },
+				{ url: safeUrl(game.link_appstore), name: 'App Store', icon: '🍏' },
+				{ url: safeUrl(game.link_itchio), name: 'Itch.io', icon: '🕹️' }
+			];
 
-        window.addEventListener('DOMContentLoaded', loadGame);
-    </script>
+			stores.forEach(store => {
+				if (store.url) {
+					storeCount++;
+					const btn = document.createElement('a');
+					btn.className = 'store_button';
+					btn.href = store.url;
+					btn.target = '_blank';
+					btn.rel = 'noopener noreferrer';
+					btn.textContent = `${store.icon} Voir sur ${store.name}`; // textContent est 100% insensible au XSS
+					storeContainer.appendChild(btn);
+				}
+			});
+
+			if (storeCount > 0) {
+				document.getElementById('store-section').style.display = 'block';
+			}
+		}
+
+		window.addEventListener('DOMContentLoaded', loadGame);
+	</script>
 </body>
 </html>

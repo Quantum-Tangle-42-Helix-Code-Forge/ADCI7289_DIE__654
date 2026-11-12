@@ -80,9 +80,20 @@
     <script type="module">
 		import { supabase } from './js/config.js';
 
+		// Validation stricte des URLs médias pour parer les attaques XSS
+		function safeMediaUrl(url) {
+			if (!url || typeof url !== 'string') return null;
+			const trimmed = url.trim();
+			if (trimmed.startsWith('https://') || trimmed.startsWith('http://') || trimmed.startsWith('./') || trimmed.startsWith('/')) {
+				return trimmed;
+			}
+			return null;
+		}
+
 		async function initCheckout() {
 			const btnProceed = document.getElementById('btn-proceed');
 			const statusText = document.getElementById('status-text');
+			const visualContainer = document.getElementById('visual-container');
 
 			// 1. Récupération des paramètres d'URL et du hash
 			const urlParams = new URLSearchParams(window.location.search);
@@ -97,7 +108,7 @@
 			const gameRefreshToken = hashParams.get('refresh_token') || urlParams.get('refresh_token');
 			const gameUserId = hashParams.get('user_id') || urlParams.get('user_id');
 
-			// Nettoyage immédiat de la barre d'adresse
+			// Nettoyage immédiat de la barre d'adresse pour protéger les jetons
 			if (window.location.hash.includes('access_token') || urlParams.has('access_token')) {
 				const cleanUrl = new URL(window.location.href);
 				cleanUrl.searchParams.delete('access_token');
@@ -156,7 +167,6 @@
 					.maybeSingle();
 
 				if (sessionData) {
-					// On récupère impérativement le price_id et le game_slug depuis la session
 					priceId = sessionData.price_id;
 					gameSlug = sessionData.game_slug;
 					if (!activeUser) {
@@ -200,14 +210,32 @@
 				return;
 			}
 
-			// Affichage des informations de l'article
+			// Affichage textuel sécurisé (aucun innerHTML)
 			document.getElementById('product-name').innerText = product.name || "Achat In-Game";
 			document.getElementById('price-display').innerText = `Réf : ${priceId}`;
 
-			if (product.animation_url) {
-				document.getElementById('visual-container').innerHTML = `<video src="${product.animation_url}" autoplay loop muted></video>`;
-			} else if (product.image_url) {
-				document.getElementById('visual-container').innerHTML = `<img src="${product.image_url}" alt="Aperçu du produit">`;
+			// Rendu média 100% sécurisé via éléments DOM natifs
+			const validVideo = safeMediaUrl(product.animation_url);
+			const validImage = safeMediaUrl(product.image_url);
+
+			if (validVideo) {
+				const video = document.createElement('video');
+				video.src = validVideo;
+				video.autoplay = true;
+				video.loop = true;
+				video.muted = true;
+				video.playsInline = true;
+				visualContainer.replaceChildren(video);
+			} else if (validImage) {
+				const img = document.createElement('img');
+				img.src = validImage;
+				img.alt = product.name || "Aperçu du produit";
+				visualContainer.replaceChildren(img);
+			} else {
+				const fallbackP = document.createElement('p');
+				fallbackP.style.color = 'var(--text-muted)';
+				fallbackP.innerText = 'Aucun visuel disponible';
+				visualContainer.replaceChildren(fallbackP);
 			}
 
 			btnProceed.disabled = false;
