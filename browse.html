@@ -6,7 +6,7 @@
     <meta name="description" content="Parcourez notre catalogue complet de jeux vidéo en ligne sur aks6.ink : action, aventure, puzzle, et jeux rétro.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="main.css">
     <title>Parcourir les jeux - aks6.ink</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
@@ -69,6 +69,33 @@
 	<script type="module">
 		import { supabase } from './js/config.js';
 
+		// Protection XSS
+		function escapeHtml(str) {
+			if (!str) return '';
+			return String(str)
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;')
+				.replace(/"/g, '&quot;')
+				.replace(/'/g, '&#039;');
+		}
+
+		// Validation des URLs de médias
+		function safeMediaUrl(url) {
+			if (!url || typeof url !== 'string') return '';
+			if (url.startsWith('https://') || url.startsWith('http://') || url.startsWith('./')) {
+				return url;
+			}
+			return '';
+		}
+
+		// Optimisation Cloudinary (320px)
+		function optimizeCloudinary(url, width = 320) {
+			if (!url || typeof url !== 'string') return '';
+			if (!url.includes('cloudinary.com') || url.includes('/f_auto')) return url;
+			return url.replace('/upload/', `/upload/f_auto,q_auto,w_${width}/`);
+		}
+
 		async function init() {
 			const searchInput = document.getElementById('universal-search');
 			const genreSelect = document.getElementById('genre-select');
@@ -79,38 +106,23 @@
 			const queryFromHeader = urlParams.get('q');
 			if (queryFromHeader) searchInput.value = queryFromHeader;
 
+			// 1. Détection locale instantanée (0 ms)
+			const hasLocalToken = Object.keys(localStorage).some(key => key.startsWith('sb-') && key.endsWith('-auth-token'));
+
 			let isAdmin = false;
-			const { data: { user } } = await supabase.auth.getUser();
-			if (user) {
-				const { data: adminData } = await supabase
-					.from('admins')
-					.select('user_id')
-					.eq('user_id', user.id)
-					.maybeSingle();
-				isAdmin = adminData !== null;
+			if (hasLocalToken) {
+				const { data: { user } } = await supabase.auth.getUser();
+				if (user) {
+					const { data: adminData } = await supabase
+						.from('admins')
+						.select('user_id')
+						.eq('user_id', user.id)
+						.maybeSingle();
+					isAdmin = adminData !== null;
+				}
 			}
 
-			function escapeHtml(str) {
-				if (!str) return '';
-				return String(str)
-					.replace(/&/g, '&amp;')
-					.replace(/</g, '&lt;')
-					.replace(/>/g, '&gt;')
-					.replace(/"/g, '&quot;')
-					.replace(/'/g, '&#039;');
-			}
-
-			function safeMediaUrl(url) {
-				if (!url || typeof url !== 'string') return '';
-				return (url.startsWith('https://') || url.startsWith('http://') || url.startsWith('./')) ? url : '';
-			}
-
-			function optimizeCloudinary(url, width = 400) {
-				if (!url || typeof url !== 'string') return '';
-				if (!url.includes('cloudinary.com') || url.includes('/f_auto')) return url;
-				return url.replace('/upload/', `/upload/f_auto,q_auto,w_${width}/`);
-			}
-
+			// 2. Recherche et filtrage
 			async function updateSearch() {
 				const text = searchInput.value.trim();
 				const genre = genreSelect.value;
@@ -122,7 +134,7 @@
 
 				if (text) {
 					dbQuery = dbQuery.or(`title.ilike.%${text}%,short_text.ilike.%${text}%,genre.ilike.%${text}%`);
-					resultTitle.innerText = `Résultats pour "${text}"`; // innerText protège déjà le titre
+					resultTitle.innerText = `Résultats pour "${text}"`;
 				} else {
 					resultTitle.innerText = isAdmin ? "🧪 Tous les jeux en test (Admin)" : "Tous les jeux";
 				}
@@ -136,13 +148,14 @@
 					return;
 				}
 
+				// 3. Rendu de la grille
 				grid.innerHTML = games.map((game, index) => {
 					let loadingAttributes = (index === 0) ? 'fetchpriority="high"' : (index < 3 ? '' : 'loading="lazy"');
 
 					const safeTitle = escapeHtml(game.title);
 					const safeSlug = encodeURIComponent(game.slug);
 					const safeShort = escapeHtml(game.short_text || '');
-					const safeImg = escapeHtml(optimizeCloudinary(safeMediaUrl(game.cover_image), 400));
+					const safeImg = escapeHtml(optimizeCloudinary(safeMediaUrl(game.cover_image), 320));
 					const safePrice = Number(game.price) || 0;
 
 					return `
