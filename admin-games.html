@@ -209,44 +209,68 @@
             loadGamesTable();
         }
 
-        async function loadGamesTable() {
-            const { data: games, error } = await supabase.from('games').select('*').order('created_at', { ascending: false });
-            const tbody = document.getElementById('games-tbody');
+        function escapeHtml(str) {
+			if (!str) return '';
+			return String(str)
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;')
+				.replace(/"/g, '&quot;')
+				.replace(/'/g, '&#039;');
+		}
 
-            if (error || !games) {
-                tbody.innerHTML = `<tr><td colspan="6" style="color:var(--accent-light);">Erreur : ${error?.message}</td></tr>`;
-                return;
-            }
+		async function loadGamesTable() {
+			const { data: games, error } = await supabase.from('games').select('*').order('created_at', { ascending: false });
+			const tbody = document.getElementById('games-tbody');
 
-            currentGames = games;
+			if (error || !games) {
+				tbody.innerHTML = `<tr><td colspan="6" style="color:var(--accent-light);">Erreur de chargement.</td></tr>`;
+				return;
+			}
 
-            if (games.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">Aucun jeu dans la base.</td></tr>`;
-                return;
-            }
+			currentGames = games;
 
-            tbody.innerHTML = games.map(g => {
-                const builds = [];
-                if (g.has_windows) builds.push('🪟 Win');
-                if (g.has_linux) builds.push('🐧 Linux');
-                if (g.has_mac) builds.push('🍎 Mac');
-                if (g.has_android) builds.push('🤖 Android');
+			if (games.length === 0) {
+				tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">Aucun jeu dans la base.</td></tr>`;
+				return;
+			}
 
-                return `
-                    <tr>
-                        <td><img src="${g.cover_image}" width="50" height="35" style="object-fit:cover; border-radius:3px;"></td>
-                        <td><strong>${g.title}</strong></td>
-                        <td style="color:var(--text-muted);">${g.slug}</td>
-                        <td style="font-size:12px;">${builds.join(', ') || '<span style="color:#666;">Aucun</span>'}</td>
-                        <td>${g.is_test ? '<span style="color:#f59f00;">🧪 Test</span>' : '<span style="color:#51cf66;">🚀 Public</span>'}</td>
-                        <td>
-                            <button class="button" style="padding:4px 10px; font-size:12px; min-height:auto;" onclick="window.openEdit('${g.slug}')">Éditer</button>
-                            <button class="button" style="padding:4px 10px; font-size:12px; min-height:auto; background:#660000;" onclick="window.deleteGame('${g.title}')">Suppr</button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-        }
+			tbody.innerHTML = games.map(g => {
+				const builds = [];
+				if (g.has_windows) builds.push('🪟 Win');
+				if (g.has_linux) builds.push('🐧 Linux');
+				if (g.has_mac) builds.push('🍎 Mac');
+				if (g.has_android) builds.push('🤖 Android');
+
+				const safeImg = escapeHtml(g.cover_image || '');
+				const safeTitle = escapeHtml(g.title);
+				const safeSlug = escapeHtml(g.slug);
+
+				// Utilisation de data-attributes au lieu d'injections dans onclick
+				return `
+					<tr>
+						<td><img src="${safeImg}" width="50" height="35" style="object-fit:cover; border-radius:3px;"></td>
+						<td><strong>${safeTitle}</strong></td>
+						<td style="color:var(--text-muted);">${safeSlug}</td>
+						<td style="font-size:12px;">${builds.join(', ') || '<span style="color:#666;">Aucun</span>'}</td>
+						<td>${g.is_test ? '<span style="color:#f59f00;">🧪 Test</span>' : '<span style="color:#51cf66;">🚀 Public</span>'}</td>
+						<td>
+							<button class="button btn-edit-game" data-slug="${safeSlug}" style="padding:4px 10px; font-size:12px; min-height:auto;">Éditer</button>
+							<button class="button btn-delete-game" data-title="${safeTitle}" style="padding:4px 10px; font-size:12px; min-height:auto; background:#660000;">Suppr</button>
+						</td>
+					</tr>
+				`;
+			}).join('');
+
+			// Liaison sécurisée des boutons sans passer par inline-javascript
+			document.querySelectorAll('.btn-edit-game').forEach(btn => {
+				btn.onclick = () => window.openEdit(btn.getAttribute('data-slug'));
+			});
+
+			document.querySelectorAll('.btn-delete-game').forEach(btn => {
+				btn.onclick = () => window.deleteGame(btn.getAttribute('data-title'));
+			});
+		}
 
         window.openEdit = (slug) => {
             const game = currentGames.find(g => g.slug === slug);
