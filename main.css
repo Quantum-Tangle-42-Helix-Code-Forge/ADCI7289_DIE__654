@@ -366,3 +366,123 @@ input:focus, textarea:focus, select:focus {
         gap: 4px;
     }
 }
+
+/* ================= TÉLÉCHARGEMENTS ET LIENS STORES ================= */
+.download_grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+    margin-top: 15px;
+}
+
+.download_card {
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    text-decoration: none;
+    color: var(--text-primary);
+    transition: all 0.2s ease;
+}
+
+.download_card:hover {
+    border-color: var(--accent-light);
+    transform: translateY(-2px);
+    background: #181818;
+}
+
+.download_info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.os_icon {
+    font-size: 22px;
+}
+
+.store_badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.store_button {
+    background: #222;
+    border: 1px solid #444;
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: bold;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.store_button:hover {
+    background: #333;
+    border-color: var(--accent-light);
+    color: white;
+}
+
+/* ================= ADMIN DASHBOARD ================= */
+.admin_table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+.admin_table th, .admin_table td {
+    padding: 12px;
+    border-bottom: 1px solid var(--border-color);
+    text-align: left;
+    font-size: 14px;
+}
+
+.admin_table th {
+    background: var(--bg-input);
+    color: var(--text-muted);
+}
+
+.modal_overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 16px;
+    overflow-y: auto;
+}
+
+.modal_card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    width: 100%;
+    max-width: 850px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 24px;
+}
+
+.checkbox_row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.checkbox_row input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}

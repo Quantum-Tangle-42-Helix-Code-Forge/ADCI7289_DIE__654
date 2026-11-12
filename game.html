@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Jouez directement en ligne sur aks6.ink.">
+    <meta name="description" content="Jouez et téléchargez des jeux vidéo indépendants sur aks6.ink.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap" rel="stylesheet">
@@ -60,10 +60,23 @@
             <h1 id="game-title" style="margin: 0;">Chargement...</h1>
             <div id="game-hero" class="game_hero">
                 <div class="hero_content">
-                    <a id="play-link" href="#" class="button play_btn_large">LANCER LE JEU</a>
+                    <a id="play-link" href="#" class="button play_btn_large">LANCER DANS LE NAVIGATEUR</a>
                 </div>
             </div>
 
+            <!-- Zone de Téléchargements -->
+            <div id="download-section" class="base_widget" style="display: none; margin-bottom: 20px;">
+                <h2 style="font-size: 18px; margin-top: 0;">⬇️ Télécharger l'installateur</h2>
+                <div class="download_grid" id="download-buttons"></div>
+            </div>
+
+            <!-- Liens Boutiques / Stores -->
+            <div id="store-section" class="base_widget" style="display: none; margin-bottom: 20px;">
+                <h2 style="font-size: 18px; margin-top: 0;">🛒 Disponible sur d'autres plateformes</h2>
+                <div class="store_badges" id="store-buttons"></div>
+            </div>
+
+            <!-- Description -->
             <div class="base_widget">
                 <h2 style="font-size: 18px; margin-top: 0;">À propos de ce jeu</h2>
                 <p id="game-desc" style="line-height: 1.6; color: var(--text-muted); margin: 0;"></p>
@@ -72,9 +85,7 @@
     </main>
 
     <footer class="footer">
-        <div class="footer_copy">
-            © 2026 <strong>Sekhmetis</strong> - Tous droits réservés.
-        </div>
+        <div class="footer_copy">© 2026 <strong>Sekhmetis</strong> - Tous droits réservés.</div>
         <div class="footer_links">
             <a href="legal_pages.html#confidentialite">Politique de Confidentialité</a>
             <a href="legal_pages.html#apropos">À Propos</a>
@@ -84,32 +95,97 @@
     </footer>
 
     <script type="module">
-		import { supabase } from './js/config.js';
+        import { supabase } from './js/config.js';
 
-		async function loadGame() {
-			const params = new URLSearchParams(window.location.search);
-			const slug = params.get('slug');
-			if (!slug) { 
-				window.location.href = "index.html"; 
-				return; 
-			}
+        async function loadGame() {
+            const params = new URLSearchParams(window.location.search);
+            const slug = params.get('slug');
+            if (!slug) { 
+                window.location.href = "index.html"; 
+                return; 
+            }
 
-			const { data: game, error } = await supabase.from('games').select('*').eq('slug', slug).single();
-			
-			if (error || !game) {
-				document.getElementById('game-title').innerText = "Jeu non trouvé";
-				document.getElementById('game-hero').style.display = 'none';
-				return;
-			}
+            const { data: game, error } = await supabase.from('games').select('*').eq('slug', slug).single();
+            
+            if (error || !game) {
+                document.getElementById('game-title').innerText = "Jeu non trouvé";
+                document.getElementById('game-hero').style.display = 'none';
+                return;
+            }
 
-			document.title = game.title + " - aks6.ink";
-			document.getElementById('game-title').innerText = game.title;
-			document.getElementById('game-desc').innerText = game.description || "Aucune description fournie.";
-			document.getElementById('game-hero').style.backgroundImage = `url('${game.cover_image}')`;
-			document.getElementById('play-link').href = `./games/${game.slug}/`;
-		}
+            document.title = game.title + " - aks6.ink";
+            document.getElementById('game-title').innerText = game.title;
+            document.getElementById('game-desc').innerText = game.description || "Aucune description fournie.";
+            document.getElementById('game-hero').style.backgroundImage = `url('${game.cover_image}')`;
+            document.getElementById('play-link').href = `./games/${game.slug}/`;
 
-		window.addEventListener('DOMContentLoaded', loadGame);
-	</script>
+            // 1. Affichage dynamique des boutons de téléchargement
+            const dlContainer = document.getElementById('download-buttons');
+            let dlCount = 0;
+
+            const downloads = [
+                { enabled: game.has_windows, url: game.download_windows, os: 'Windows', icon: '🪟', note: '.exe / .zip' },
+                { enabled: game.has_linux, url: game.download_linux, os: 'Linux', icon: '🐧', note: '.AppImage / tar' },
+                { enabled: game.has_mac, url: game.download_mac, os: 'macOS', icon: '🍎', note: '.dmg / .zip' },
+                { enabled: game.has_android, url: game.download_android, os: 'Android', icon: '🤖', note: '.apk' },
+            ];
+
+            downloads.forEach(dl => {
+                if (dl.enabled && dl.url) {
+                    dlCount++;
+                    const card = document.createElement('a');
+                    card.className = 'download_card';
+                    card.href = dl.url;
+                    card.target = '_blank';
+                    card.rel = 'noopener noreferrer';
+                    card.innerHTML = `
+                        <div class="download_info">
+                            <span class="os_icon">${dl.icon}</span>
+                            <div>
+                                <strong style="display:block;">${dl.os}</strong>
+                                <span style="font-size:12px; color:var(--text-muted);">${dl.note}</span>
+                            </div>
+                        </div>
+                        <span class="button" style="padding:6px 14px; min-height:auto; font-size:13px;">Télécharger</span>
+                    `;
+                    dlContainer.appendChild(card);
+                }
+            });
+
+            if (dlCount > 0) {
+                document.getElementById('download-section').style.display = 'block';
+            }
+
+            // 2. Affichage dynamique des plateformes / Stores
+            const storeContainer = document.getElementById('store-buttons');
+            let storeCount = 0;
+
+            const stores = [
+                { url: game.link_steam, name: 'Steam', icon: '🎮' },
+                { url: game.link_playstore, name: 'Google Play', icon: '📱' },
+                { url: game.link_appstore, name: 'App Store', icon: '🍏' },
+                { url: game.link_itchio, name: 'Itch.io', icon: '🕹️' }
+            ];
+
+            stores.forEach(store => {
+                if (store.url) {
+                    storeCount++;
+                    const btn = document.createElement('a');
+                    btn.className = 'store_button';
+                    btn.href = store.url;
+                    btn.target = '_blank';
+                    btn.rel = 'noopener noreferrer';
+                    btn.innerHTML = `${store.icon} Voir sur ${store.name}`;
+                    storeContainer.appendChild(btn);
+                }
+            });
+
+            if (storeCount > 0) {
+                document.getElementById('store-section').style.display = 'block';
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', loadGame);
+    </script>
 </body>
 </html>
