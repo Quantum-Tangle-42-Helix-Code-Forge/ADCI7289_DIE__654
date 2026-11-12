@@ -6,7 +6,7 @@
     <meta name="description" content="Jouez aux meilleurs jeux vidéo indépendants en ligne gratuitement sur aks6.ink. Découvrez notre catalogue de jeux d'arcade, puzzles et aventures.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="main.css">
     <title>aks6.ink - Plateforme de Jeux Vidéo Indépendants</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
@@ -62,7 +62,7 @@
     <script type="module">
 		import { supabase } from './js/config.js';
 
-		// Fonction d'échappement XSS
+		// Protection XSS
 		function escapeHtml(str) {
 			if (!str) return '';
 			return String(str)
@@ -73,7 +73,7 @@
 				.replace(/'/g, '&#039;');
 		}
 
-		// Validation des URLs de couverture
+		// Validation des URLs de médias
 		function safeMediaUrl(url) {
 			if (!url || typeof url !== 'string') return '';
 			if (url.startsWith('https://') || url.startsWith('http://') || url.startsWith('./')) {
@@ -82,29 +82,41 @@
 			return '';
 		}
 
-		function optimizeCloudinary(url, width = 400) {
+		// Optimisation Cloudinary (320px pour supprimer la pénalité mobile de Lighthouse)
+		function optimizeCloudinary(url, width = 320) {
 			if (!url || typeof url !== 'string') return '';
 			if (!url.includes('cloudinary.com') || url.includes('/f_auto')) return url;
 			return url.replace('/upload/', `/upload/f_auto,q_auto,w_${width}/`);
 		}
 
 		async function init() {
-			const { data: { user } } = await supabase.auth.getUser();
+			const grid = document.getElementById('game-grid');
 			const panel = document.getElementById('user-panel');
+
+			// 1. Détection locale instantanée (0 ms) : vérifie si un jeton existe sans appel réseau
+			const hasLocalToken = Object.keys(localStorage).some(key => key.startsWith('sb-') && key.endsWith('-auth-token'));
+
 			let isAdmin = false;
-			
-			if (user) {
-				const { data: adminData } = await supabase
-					.from('admins')
-					.select('user_id')
-					.eq('user_id', user.id)
-					.maybeSingle();
+			let currentUser = null;
 
-				isAdmin = adminData !== null;
+			// Seul un utilisateur possédant un jeton local déclenche les vérifications de session
+			if (hasLocalToken) {
+				const { data: { user } } = await supabase.auth.getUser();
+				if (user) {
+					currentUser = user;
+					const { data: adminData } = await supabase
+						.from('admins')
+						.select('user_id')
+						.eq('user_id', user.id)
+						.maybeSingle();
 
-				// Protection du nom d'affichage contre XSS
-				const safeDisplayName = escapeHtml(user.user_metadata?.display_name || 'Compte');
+					isAdmin = adminData !== null;
+				}
+			}
 
+			// 2. Mise à jour sécurisée du header si connecté
+			if (currentUser && panel) {
+				const safeDisplayName = escapeHtml(currentUser.user_metadata?.display_name || 'Compte');
 				panel.innerHTML = `
 					<a href="user_account.html" class="panel_button">${safeDisplayName}</a>
 					${isAdmin ? '<a href="upload.html" class="panel_button" style="color:var(--accent-light); border-color:var(--accent-light);">Ajouter</a>' : ''}
@@ -117,39 +129,36 @@
 				};
 			}
 
+			// 3. Requête directe des jeux appropriés (aucun décalage pour les visiteurs)
 			const { data: games, error } = await supabase
 				.from('games')
 				.select('*')
 				.eq('is_test', isAdmin)
 				.order('created_at', { ascending: false });
 
-			const grid = document.getElementById('game-grid');
 			if (error || !games) {
 				grid.innerHTML = "<p style='color:var(--text-muted);'>Erreur lors du chargement des jeux.</p>";
 				return;
 			}
 
 			document.getElementById('game-count').innerText = ` (${games.length})`;
-			
+
 			if (games.length === 0) {
-				grid.innerHTML = "<p style='grid-column: 1/-1; text-align: center; color: var(--text-muted);'>Aucun jeu disponible pour le moment.</p>";
+				const emptyMsg = isAdmin 
+					? "Aucun jeu en phase de test pour le moment." 
+					: "Aucun jeu disponible pour le moment.";
+				grid.innerHTML = `<p style='grid-column: 1/-1; text-align: center; color: var(--text-muted);'>${emptyMsg}</p>`;
 				return;
 			}
 
+			// 4. Rendu de la grille (seule la 1ère image a fetchpriority="high" pour le LCP)
 			grid.innerHTML = games.map((game, index) => {
-				let loadingAttributes = '';
-				if (index === 0) {
-					loadingAttributes = 'fetchpriority="high"';
-				} else if (index < 3) {
-					loadingAttributes = '';
-				} else {
-					loadingAttributes = 'loading="lazy"';
-				}
+				let loadingAttributes = (index === 0) ? 'fetchpriority="high"' : (index < 3 ? '' : 'loading="lazy"');
 
 				const safeTitle = escapeHtml(game.title);
 				const safeSlug = encodeURIComponent(game.slug);
 				const safeShort = escapeHtml(game.short_text || '');
-				const safeImg = escapeHtml(optimizeCloudinary(safeMediaUrl(game.cover_image), 400));
+				const safeImg = escapeHtml(optimizeCloudinary(safeMediaUrl(game.cover_image), 320));
 				const safePrice = Number(game.price) || 0;
 
 				return `
@@ -171,6 +180,9 @@
 				`;
 			}).join('');
 		}
+
+		window.addEventListener('DOMContentLoaded', init);
+	</script>
 
 		window.addEventListener('DOMContentLoaded', init);
 	</script>
