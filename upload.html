@@ -29,6 +29,7 @@
             <h1 style="color: var(--accent-light); margin-top: 0; font-size: 24px;">🚀 Lier et publier un nouveau jeu</h1>
             
             <form id="uploadForm">
+                <!-- Métadonnées principales -->
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
                     <div>
                         <div class="input_row">
@@ -36,7 +37,7 @@
                             <input type="text" id="title" required placeholder="Ex: Mon Super Jeu">
                         </div>
                         <div class="input_row">
-                            <label for="slug">Slug (nom du dossier dans /games/)</label>
+                            <label for="slug">Slug (nom du dossier et de la release GitHub)</label>
                             <input type="text" id="slug" required placeholder="mon-super-jeu">
                         </div>
                         <div class="input_row">
@@ -80,55 +81,67 @@
 
                 <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 25px 0;">
 
-                <h2 style="font-size: 18px; margin-bottom: 8px;">📦 Fichiers téléchargeables (Installateurs)</h2>
-                <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 20px;">
-                    Cochez les systèmes pris en charge. Vous pouvez téléverser directement un fichier (vers Supabase Storage) OU saisir un lien externe existant.
-                </p>
+                <!-- Zone GitHub Releases -->
+                <div style="background: #191c20; border: 1px solid #2f363d; border-radius: 6px; padding: 18px; margin-bottom: 25px;">
+                    <h2 style="font-size: 18px; margin: 0 0 8px 0;">📦 Fichiers téléchargeables (GitHub Releases)</h2>
+                    <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 15px;">
+                        Hébergez vos installeurs (jusqu'à 2 Go) gratuitement sur le CDN mondial de GitHub sans charger Supabase.
+                    </p>
 
+                    <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 15px;">
+                        <button type="button" id="btn-open-github" class="button" style="background:#24292e;">
+                            🐙 1. Déposer les fichiers sur GitHub
+                        </button>
+                        <button type="button" id="btn-sync-github" class="button" style="background:#2f363d;">
+                            🔄 2. Détecter les fichiers déposés
+                        </button>
+                    </div>
+
+                    <div id="github-status" style="font-size: 13px; color: var(--text-muted); margin-bottom: 10px;"></div>
+                </div>
+
+                <!-- Cases à cocher & URLs générées -->
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
                     <!-- Windows -->
                     <div class="base_widget" style="margin-top:0; padding:16px;">
                         <div class="checkbox_row">
                             <input type="checkbox" id="has_windows">
-                            <label for="has_windows" style="margin:0; font-size:15px; color:#fff;">🪟 Version Windows (.exe, .zip)</label>
+                            <label for="has_windows" style="margin:0; font-size:15px; color:#fff;">🪟 Windows (.exe, .zip)</label>
                         </div>
-                        <input type="file" id="file_windows" style="margin-top:8px;">
-                        <input type="url" id="url_windows" placeholder="Ou URL directe (ex: https://...)" style="margin-top:8px;">
+                        <input type="url" id="download_windows" placeholder="URL détectée automatiquement..." style="margin-top:8px;">
                     </div>
 
                     <!-- Linux -->
                     <div class="base_widget" style="margin-top:0; padding:16px;">
                         <div class="checkbox_row">
                             <input type="checkbox" id="has_linux">
-                            <label for="has_linux" style="margin:0; font-size:15px; color:#fff;">🐧 Version Linux (.AppImage, .tar.gz)</label>
+                            <label for="has_linux" style="margin:0; font-size:15px; color:#fff;">🐧 Linux (.AppImage, .tar.gz)</label>
                         </div>
-                        <input type="file" id="file_linux" style="margin-top:8px;">
-                        <input type="url" id="url_linux" placeholder="Ou URL directe" style="margin-top:8px;">
+                        <input type="url" id="download_linux" placeholder="URL détectée automatiquement..." style="margin-top:8px;">
                     </div>
 
                     <!-- macOS -->
                     <div class="base_widget" style="margin-top:0; padding:16px;">
                         <div class="checkbox_row">
                             <input type="checkbox" id="has_mac">
-                            <label for="has_mac" style="margin:0; font-size:15px; color:#fff;">🍎 Version macOS (.dmg, .zip)</label>
+                            <label for="has_mac" style="margin:0; font-size:15px; color:#fff;">🍎 macOS (.dmg, .zip)</label>
                         </div>
-                        <input type="file" id="file_mac" style="margin-top:8px;">
-                        <input type="url" id="url_mac" placeholder="Ou URL directe" style="margin-top:8px;">
+                        <input type="url" id="download_mac" placeholder="URL détectée automatiquement..." style="margin-top:8px;">
                     </div>
 
                     <!-- Android -->
                     <div class="base_widget" style="margin-top:0; padding:16px;">
                         <div class="checkbox_row">
                             <input type="checkbox" id="has_android">
-                            <label for="has_android" style="margin:0; font-size:15px; color:#fff;">🤖 Version Android (.apk)</label>
+                            <label for="has_android" style="margin:0; font-size:15px; color:#fff;">🤖 Android (.apk)</label>
                         </div>
-                        <input type="file" id="file_android" style="margin-top:8px;">
-                        <input type="url" id="url_android" placeholder="Ou URL directe" style="margin-top:8px;">
+                        <input type="url" id="download_android" placeholder="URL détectée automatiquement..." style="margin-top:8px;">
                     </div>
                 </div>
 
                 <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 25px 0;">
 
+                <!-- Liens Plateformes & Stores -->
                 <h2 style="font-size: 18px; margin-bottom: 8px;">🛒 Liens vers les plateformes & Stores</h2>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
                     <div class="input_row">
@@ -167,6 +180,7 @@
     <script type="module">
         import { supabase, CLOUDINARY_URL, CLOUDINARY_PRESET } from './js/config.js';
 
+        // 1. Vérification Admin
         async function checkAdminAccess() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) { window.location.href = "login.html"; return; }
@@ -184,33 +198,127 @@
         }
         window.addEventListener('DOMContentLoaded', checkAdminAccess);
 
-        // Upload build vers Supabase Storage
-        async function uploadBuildFile(fileInput, slug, osName) {
-            const file = fileInput.files[0];
-            if (!file) return null;
-            const ext = file.name.split('.').pop();
-            const filePath = `${slug}/${slug}-${osName}-${Date.now()}.${ext}`;
+        // Auto-remplissage du slug quand on tape le titre
+        document.getElementById('title').addEventListener('input', (e) => {
+            const slugInput = document.getElementById('slug');
+            if (!slugInput.dataset.manual) {
+                slugInput.value = e.target.value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+            }
+        });
+        document.getElementById('slug').addEventListener('input', () => {
+            document.getElementById('slug').dataset.manual = "true";
+        });
 
-            const { error: uploadError } = await supabase.storage
-                .from('game-builds')
-                .upload(filePath, file, { upsert: true });
+        // 2. Étape 1 : Ouvrir la Release GitHub
+        document.getElementById('btn-open-github').onclick = async () => {
+            const slug = document.getElementById('slug').value.trim();
+            const title = document.getElementById('title').value.trim();
+            const statusDiv = document.getElementById('github-status');
 
-            if (uploadError) throw new Error(`Erreur upload build ${osName}: ` + uploadError.message);
+            if (!slug) {
+                alert("Veuillez d'abord saisir un Titre et un Slug pour ce jeu.");
+                return;
+            }
 
-            const { data } = supabase.storage.from('game-builds').getPublicUrl(filePath);
-            return data.publicUrl;
-        }
+            statusDiv.innerText = "Création / Accès à la Release GitHub...";
 
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                const res = await fetch(`${supabase.supabaseUrl}/functions/v1/github-release`, {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${session.access_token}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ slug, title })
+                });
+
+                const json = await res.json();
+                if (json.error) throw new Error(json.error);
+
+                statusDiv.innerHTML = `Page GitHub ouverte ! Glissez-déposez vos fichiers dans la zone <em>"Attach binaries by dropping them here"</em>, cliquez sur <strong>Update release</strong> sur GitHub, puis revenez ici cliquer sur <strong>Étape 2</strong>.`;
+                window.open(json.edit_url, '_blank');
+            } catch (err) {
+                statusDiv.innerHTML = `<span style="color:var(--accent-light);">Erreur : ${err.message}</span>`;
+            }
+        };
+
+        // 3. Étape 2 : Détection automatique des fichiers déposés
+        document.getElementById('btn-sync-github').onclick = async () => {
+            const slug = document.getElementById('slug').value.trim();
+            const statusDiv = document.getElementById('github-status');
+
+            if (!slug) {
+                alert("Veuillez renseigner le slug.");
+                return;
+            }
+
+            statusDiv.innerText = "Analyse des fichiers sur GitHub...";
+
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                const res = await fetch(`${supabase.supabaseUrl}/functions/v1/github-release`, {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${session.access_token}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ slug })
+                });
+
+                const json = await res.json();
+                if (json.error) throw new Error(json.error);
+
+                const assets = json.assets || [];
+                if (assets.length === 0) {
+                    statusDiv.innerHTML = "⚠️ Aucun fichier trouvé sur la release GitHub. N'oubliez pas de cliquer sur <strong>Update release</strong> sur GitHub après avoir glissé vos fichiers.";
+                    return;
+                }
+
+                let foundCount = 0;
+                assets.forEach(asset => {
+                    const name = asset.name.toLowerCase();
+                    foundCount++;
+
+                    // Windows
+                    if (name.endsWith('.exe') || name.includes('win')) {
+                        document.getElementById('has_windows').checked = true;
+                        document.getElementById('download_windows').value = asset.download_url;
+                    }
+                    // Linux
+                    else if (name.endsWith('.appimage') || name.endsWith('.deb') || name.includes('linux') || name.endsWith('.tar.gz')) {
+                        document.getElementById('has_linux').checked = true;
+                        document.getElementById('download_linux').value = asset.download_url;
+                    }
+                    // macOS
+                    else if (name.endsWith('.dmg') || name.includes('mac') || name.includes('darwin')) {
+                        document.getElementById('has_mac').checked = true;
+                        document.getElementById('download_mac').value = asset.download_url;
+                    }
+                    // Android
+                    else if (name.endsWith('.apk') || name.includes('android')) {
+                        document.getElementById('has_android').checked = true;
+                        document.getElementById('download_android').value = asset.download_url;
+                    }
+                });
+
+                statusDiv.innerHTML = `✅ <strong>${foundCount} fichier(s) détecté(s)</strong> et associés automatiquement aux cases ci-dessous !`;
+            } catch (err) {
+                statusDiv.innerHTML = `<span style="color:var(--accent-light);">Erreur : ${err.message}</span>`;
+            }
+        };
+
+        // 4. Enregistrement final du jeu dans Supabase
         document.getElementById('uploadForm').onsubmit = async (e) => {
             e.preventDefault();
             const btn = document.getElementById('btn');
             btn.disabled = true;
-            btn.innerText = "Téléversement en cours...";
+            btn.innerText = "Téléversement de la couverture & Enregistrement...";
 
             try {
-                const slug = document.getElementById('slug').value.toLowerCase().trim().replace(/\s+/g, '-');
+                const slug = document.getElementById('slug').value.trim();
 
-                // 1. Image vers Cloudinary
+                // Upload image sur Cloudinary
                 const file = document.getElementById('coverFile').files[0];
                 const formData = new FormData();
                 formData.append('file', file);
@@ -218,30 +326,9 @@
 
                 const res = await fetch(CLOUDINARY_URL, { method: 'POST', body: formData });
                 const json = await res.json();
-                if (!json.secure_url) throw new Error("Échec du téléversement de la couverture sur Cloudinary.");
+                if (!json.secure_url) throw new Error("Échec de l'upload de la couverture");
 
-                // 2. Gestion des fichiers téléchargeables
-                const hasWin = document.getElementById('has_windows').checked;
-                let dlWin = document.getElementById('url_windows').value.trim();
-                const uploadedWin = await uploadBuildFile(document.getElementById('file_windows'), slug, 'windows');
-                if (uploadedWin) dlWin = uploadedWin;
-
-                const hasLinux = document.getElementById('has_linux').checked;
-                let dlLinux = document.getElementById('url_linux').value.trim();
-                const uploadedLinux = await uploadBuildFile(document.getElementById('file_linux'), slug, 'linux');
-                if (uploadedLinux) dlLinux = uploadedLinux;
-
-                const hasMac = document.getElementById('has_mac').checked;
-                let dlMac = document.getElementById('url_mac').value.trim();
-                const uploadedMac = await uploadBuildFile(document.getElementById('file_mac'), slug, 'mac');
-                if (uploadedMac) dlMac = uploadedMac;
-
-                const hasAndroid = document.getElementById('has_android').checked;
-                let dlAndroid = document.getElementById('url_android').value.trim();
-                const uploadedAndroid = await uploadBuildFile(document.getElementById('file_android'), slug, 'android');
-                if (uploadedAndroid) dlAndroid = uploadedAndroid;
-
-                // 3. Insertion Supabase
+                // Enregistrement dans la table games de Supabase
                 const { error } = await supabase.from('games').insert([{
                     title: document.getElementById('title').value.trim(),
                     slug: slug,
@@ -251,14 +338,14 @@
                     price: parseFloat(document.getElementById('price').value) || 0,
                     cover_image: json.secure_url,
                     is_test: document.getElementById('is_test').value === 'true',
-                    has_windows: hasWin,
-                    download_windows: dlWin || null,
-                    has_linux: hasLinux,
-                    download_linux: dlLinux || null,
-                    has_mac: hasMac,
-                    download_mac: dlMac || null,
-                    has_android: hasAndroid,
-                    download_android: dlAndroid || null,
+                    has_windows: document.getElementById('has_windows').checked,
+                    download_windows: document.getElementById('download_windows').value.trim() || null,
+                    has_linux: document.getElementById('has_linux').checked,
+                    download_linux: document.getElementById('download_linux').value.trim() || null,
+                    has_mac: document.getElementById('has_mac').checked,
+                    download_mac: document.getElementById('download_mac').value.trim() || null,
+                    has_android: document.getElementById('has_android').checked,
+                    download_android: document.getElementById('download_android').value.trim() || null,
                     link_steam: document.getElementById('link_steam').value.trim() || null,
                     link_playstore: document.getElementById('link_playstore').value.trim() || null,
                     link_appstore: document.getElementById('link_appstore').value.trim() || null,
@@ -266,7 +353,7 @@
                 }]);
 
                 if (error) throw error;
-                alert("Jeu enregistré avec succès !");
+                alert("Jeu enregistré avec succès avec ses fichiers GitHub !");
                 window.location.href = "game.html?slug=" + slug;
             } catch (err) {
                 alert("Erreur : " + err.message);
