@@ -1,15 +1,15 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-}
+};
 
 const userLastSyncMap = new Map<string, number>();
 const MIN_SYNC_INTERVAL_MS = 3000;
 
-// --- LOGIQUE DE VALIDATION DYNAMIQUE (Intégrée) ---
+// --- LOGIQUE DE VALIDATION DYNAMIQUE ---
 
 function getSavedAt(data: any): number {
   if (!data) return 0;
@@ -22,7 +22,6 @@ function getSavedAt(data: any): number {
 function getValueFromData(path: string, data: any): any {
   if (!data) return undefined;
 
-  // 1. Si le chemin contient des points (ex: "levels.level1.nb_etoiles"), accès direct
   if (path.includes('.')) {
     const parts = path.trim().split('.');
     let current = data;
@@ -33,7 +32,6 @@ function getValueFromData(path: string, data: any): any {
     return current;
   }
 
-  // 2. Si c'est une clé simple (ex: "nb_etoiles"), recherche récursive dans tout l'objet JSON
   let foundValue: any = undefined;
 
   function search(obj: any) {
@@ -109,11 +107,45 @@ function validateDynamicRules(rules: string[], newData: any): { valid: boolean; 
   return { valid: true };
 }
 
+// Fonction utilitaire pour appliquer le bannissement complet
+async function banUser(
+  supabaseAdmin: any,
+  userId: string,
+  email: string | undefined,
+  reason: string,
+  details: string,
+  gameSlug: string
+) {
+  console.error(`🚨 BANNISSEMENT DE L'UTILISATEUR [${userId}] | Raison: ${reason} | Détails: ${details}`);
+
+  // 1. Inscription dans la table banned_users
+  await supabaseAdmin
+    .from('banned_users')
+    .upsert({
+      user_id: userId,
+      email: email || null,
+      reason: reason,
+      details: details,
+      game_slug: gameSlug,
+      is_active: true,
+      banned_at: new Date().toISOString()
+    }, { onConflict: 'user_id' });
+
+  // 2. Révocation immédiate dans Supabase Auth (bloque son token et empêche de se reconnecter)
+  try {
+    await supabaseAdmin.auth.admin.updateUserById(userId, {
+      ban_duration: '876000h' // 100 ans
+    });
+  } catch (authErr: any) {
+    console.error("Erreur ban auth:", authErr.message);
+  }
+}
+
 // --- SERVEUR EDGE FUNCTION ---
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
@@ -125,35 +157,52 @@ Deno.serve(async (req) => {
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    )
+    );
 
     // A. Validation et extraction propre du jeton
-    const authHeader = req.headers.get('Authorization')
+    const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "No auth header provided" }), { 
         status: 401, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      })
+      });
     }
 
-    // Nettoyage de tous les préfixes "Bearer " superflus
     const token = authHeader.replace(/^Bearer\s+/i, '').trim();
 
-    // B. Vérification du jeton avec Supabase Auth
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
+    // B. Vérification de l'utilisateur
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
     
     if (authError || !user) {
-      console.error("❌ Échec d'authentification :", authError?.message || "User not found");
       return new Response(JSON.stringify({ 
         error: "Invalid token", 
         message: authError?.message || "User session invalid or expired" 
       }), { 
         status: 401, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      })
+      });
     }
 
-    // C. Limiteur de fréquence d'appels (Rate Limiting)
+    // 🛑 C. VÉRIFICATION IMMÉDIATE : LE JOUEUR EST-IL DÉJÀ BANNI ?
+    const { data: banRecord } = await supabaseAdmin
+      .from('banned_users')
+      .select('reason, details')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (banRecord) {
+      console.warn(`🛑 Accès refusé pour l'utilisateur banni [${user.id}]`);
+      return new Response(JSON.stringify({ 
+        error: "Account Banned", 
+        reason: `Ce compte est suspendu. Motif : ${banRecord.reason}` 
+      }), { 
+        status: 403, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
+    // D. Limiteur de fréquence d'appels (Rate Limiting)
     const now = Date.now();
     const lastUserSync = userLastSyncMap.get(user.id) || 0;
     if (now - lastUserSync < MIN_SYNC_INTERVAL_MS) {
@@ -163,29 +212,77 @@ Deno.serve(async (req) => {
       });
     }
 
-    // D. Extraction du contenu de la requête
-    const { game_slug, new_data } = await req.json()
+    // E. Extraction du contenu de la requête
+    const { game_slug, new_data } = await req.json();
     if (!game_slug || !new_data) {
       return new Response(JSON.stringify({ error: "Missing payload" }), { 
         status: 400, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      })
+      });
+    }
+
+    // 🚨 F. VÉRIFICATION DU GAME SLUG (BAN SI INVALIDE)
+    const { data: ruleRow } = await supabaseAdmin
+      .from('game_rules')
+      .select('rules')
+      .eq('game_slug', game_slug)
+      .maybeSingle();
+
+    if (!ruleRow) {
+      await banUser(
+        supabaseAdmin,
+        user.id,
+        user.email,
+        "GAME_SLUG_INVALIDE",
+        `Tentative d'accès sur le jeu non répertorié : "${game_slug}"`,
+        game_slug
+      );
+
+      return new Response(JSON.stringify({ 
+        error: "Forbidden", 
+        reason: "Jeu non autorisé. Votre compte a été suspendu pour tentative d'intrusion." 
+      }), { 
+        status: 403, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
+    }
+
+    // 🚨 G. VÉRIFICATION ANTI-TRICHE (BAN SI RÈGLE VIOLÉE)
+    if (ruleRow && ruleRow.rules && Array.isArray(ruleRow.rules)) {
+      const check = validateDynamicRules(ruleRow.rules, new_data);
+      if (!check.valid) {
+        await banUser(
+          supabaseAdmin,
+          user.id,
+          user.email,
+          "TRICHE",
+          check.reason || "Modification anormale des valeurs du jeu",
+          game_slug
+        );
+
+        return new Response(JSON.stringify({ 
+          error: "Validation failed", 
+          reason: "Triche détectée. Votre compte a été suspendu." 
+        }), { 
+          status: 403, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+      }
     }
 
     const newTs = getSavedAt(new_data);
 
-    // E. Récupération de l'ancienne sauvegarde
+    // H. Récupération de l'ancienne sauvegarde
     const { data: oldRow } = await supabaseAdmin
       .from('user_game_data')
       .select('data')
       .eq('user_id', user.id)
       .eq('game_slug', game_slug)
-      .maybeSingle()
+      .maybeSingle();
 
-    const oldData = oldRow?.data || null
+    const oldData = oldRow?.data || null;
     const oldTs = getSavedAt(oldData);
 
-    // F. Détection de données plus anciennes ou identiques
     if (oldTs !== 0 && newTs <= oldTs) {
       return new Response(JSON.stringify({ status: "ignored", reason: "old_or_same_timestamp" }), { 
         status: 200, 
@@ -193,37 +290,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // G. Validation dynamique via la table game_rules
-    const { data: ruleRow } = await supabaseAdmin
-      .from('game_rules')
-      .select('rules')
-      .eq('game_slug', game_slug)
-      .maybeSingle();
-      
-    // 🚨 Si le jeu n'est pas répertorié dans votre table, on bloque la requête
-    if (!ruleRow) {
-      console.warn(`🚨 Tentative de sauvegarde pour un jeu non répertorié : [${game_slug}]`);
-      return new Response(JSON.stringify({ 
-        error: "Forbidden", 
-        reason: "Ce jeu n'est pas autorisé ou répertorié." 
-      }), { 
-        status: 403, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      });
-    }
-
-    if (ruleRow && ruleRow.rules && Array.isArray(ruleRow.rules)) {
-      const check = validateDynamicRules(ruleRow.rules, new_data);
-      if (!check.valid) {
-        console.warn(`🚨 Triche détectée [${game_slug}] : ${check.reason}`);
-        return new Response(JSON.stringify({ error: "Validation failed", reason: check.reason }), { 
-          status: 403, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        });
-      }
-    }
-
-    // H. Insertion / Mise à jour dans la BDD
+    // I. Insertion / Mise à jour dans la BDD
     const { error: upsertError } = await supabaseAdmin
       .from('user_game_data')
       .upsert({
@@ -240,13 +307,13 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ status: "success" }), { 
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    })
+    });
     
   } catch (err: any) {
-    console.error("Crash Secure Sync:", err.message)
+    console.error("Crash Secure Sync:", err.message);
     return new Response(JSON.stringify({ error: err.message }), { 
       status: 500, 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    })
+    });
   }
-})
+});
