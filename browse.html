@@ -4,9 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Parcourez notre catalogue complet de jeux vidéo en ligne sur aks6.ink : action, aventure, puzzle, et jeux rétro.">
-    <!--<link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">-->
     <link rel="stylesheet" href="main.css">
     <title>Parcourir les jeux - aks6.ink</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4" defer></script>
@@ -69,7 +66,6 @@
 	<script type="module">
 		import { supabase } from './js/config.js';
 
-		// Protection XSS
 		function escapeHtml(str) {
 			if (!str) return '';
 			return String(str)
@@ -80,7 +76,6 @@
 				.replace(/'/g, '&#039;');
 		}
 
-		// Validation des URLs de médias
 		function safeMediaUrl(url) {
 			if (!url || typeof url !== 'string') return '';
 			if (url.startsWith('https://') || url.startsWith('http://') || url.startsWith('./')) {
@@ -89,7 +84,6 @@
 			return '';
 		}
 
-		// Optimisation Cloudinary (320px)
 		function optimizeCloudinary(url, width = 320) {
 			if (!url || typeof url !== 'string') return '';
 			if (!url.includes('cloudinary.com') || url.includes('/f_auto')) return url;
@@ -106,7 +100,6 @@
 			const queryFromHeader = urlParams.get('q');
 			if (queryFromHeader) searchInput.value = queryFromHeader;
 
-			// 1. Détection locale instantanée (0 ms)
 			const hasLocalToken = Object.keys(localStorage).some(key => key.startsWith('sb-') && key.endsWith('-auth-token'));
 
 			let isAdmin = false;
@@ -122,7 +115,6 @@
 				}
 			}
 
-			// 2. Recherche et filtrage
 			async function updateSearch() {
 				const text = searchInput.value.trim();
 				const genre = genreSelect.value;
@@ -148,7 +140,6 @@
 					return;
 				}
 
-				// 3. Rendu de la grille
 				grid.innerHTML = games.map((game, index) => {
 					let loadingAttributes = (index === 0) ? 'fetchpriority="high"' : (index < 3 ? '' : 'loading="lazy"');
 
@@ -157,6 +148,12 @@
 					const safeShort = escapeHtml(game.short_text || '');
 					const safeImg = escapeHtml(optimizeCloudinary(safeMediaUrl(game.cover_image), 320));
 					const safePrice = Number(game.price) || 0;
+
+					const ratingCount = Number(game.rating_count) || 0;
+					const ratingAvg = Number(game.rating_avg) || 0;
+					const ratingBadgeHtml = ratingCount > 0 
+						? `<span class="rating_badge">★ ${ratingAvg.toFixed(1)} <small>(${ratingCount})</small></span>` 
+						: `<span class="rating_badge" style="color:var(--text-muted);">★ <small>Nouveau</small></span>`;
 
 					return `
 						<article class="game_cell">
@@ -169,7 +166,10 @@
 								</a>
 							</div>
 							<div class="label">
-								<span class="price_tag">${safePrice === 0 ? 'Gratuit' : safePrice + ' $'}</span>
+								<div style="display:flex; align-items:center; margin-bottom: 6px;">
+									<span class="price_tag" style="margin-bottom:0;">${safePrice === 0 ? 'Gratuit' : safePrice + ' $'}</span>
+									${ratingBadgeHtml}
+								</div>
 								<a class="title" href="game.html?slug=${safeSlug}">${safeTitle}</a>
 								<div class="sub">${safeShort}</div>
 							</div>
