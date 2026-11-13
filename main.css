@@ -634,3 +634,62 @@ input:focus, textarea:focus, select:focus {
     flex: 1;
     justify-content: space-between;
 }
+
+/* ================= BADGE NOTE (CARTES) ================= */
+.rating_badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    color: #ffc107;
+    margin-left: 8px;
+}
+.rating_badge small {
+    color: var(--text-muted);
+    font-weight: normal;
+}
+
+/* ================= WIDGET DE VOTE (PAGE DU JEU) ================= */
+.rating_widget_box {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 14px 20px;
+    margin-bottom: 20px;
+}
+.rating_score_display {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.rating_big_number {
+    font-size: 26px;
+    font-weight: 900;
+    color: #ffc107;
+}
+.stars_interactive {
+    display: inline-flex;
+    gap: 4px;
+}
+.star_btn {
+    background: transparent;
+    border: none;
+    font-size: 26px;
+    color: #444;
+    cursor: pointer;
+    padding: 0;
+    transition: color 0.15s ease, transform 0.1s ease;
+    line-height: 1;
+}
+.star_btn:hover {
+    transform: scale(1.15);
+}
+.star_btn.filled {
+    color: #ffc107;
+}

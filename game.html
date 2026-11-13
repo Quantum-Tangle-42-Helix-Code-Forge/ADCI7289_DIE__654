@@ -67,6 +67,27 @@
                 </div>
             </div>
 
+            <!-- Widget Note et Étoiles -->
+            <div class="rating_widget_box" id="rating-widget">
+                <div class="rating_score_display">
+                    <span class="rating_big_number" id="rating-avg-num">0.0</span>
+                    <div>
+                        <div style="font-weight:bold; font-size:14px; color:#fff;">Note de la communauté</div>
+                        <div style="font-size:12px; color:var(--text-muted);"><span id="rating-total-votes">0</span> avis de joueurs</div>
+                    </div>
+                </div>
+                <div>
+                    <div style="font-size:13px; color:var(--text-muted); margin-bottom:4px; text-align:right;" id="user-rating-status">Votre note :</div>
+                    <div class="stars_interactive" id="stars-container">
+                        <button type="button" class="star_btn" data-val="1" title="1 étoile">★</button>
+                        <button type="button" class="star_btn" data-val="2" title="2 étoiles">★</button>
+                        <button type="button" class="star_btn" data-val="3" title="3 étoiles">★</button>
+                        <button type="button" class="star_btn" data-val="4" title="4 étoiles">★</button>
+                        <button type="button" class="star_btn" data-val="5" title="5 étoiles">★</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Zone de Téléchargements -->
             <div id="download-section" class="base_widget" style="display: none; margin-bottom: 20px;">
                 <h2 style="font-size: 18px; margin-top: 0;">⬇️ Télécharger l'installateur</h2>
@@ -90,7 +111,6 @@
                 <h2 style="font-size: 18px; margin-top: 0;">💬 Avis des joueurs (<span id="comments-count">0</span>)</h2>
                 
                 <div id="comment-auth-box">
-                    <!-- Formulaire pour utilisateurs connectés -->
                     <form id="comment-form" class="comment_form" style="display:none;">
                         <textarea id="comment-input" class="comment_textarea" maxlength="500" required placeholder="Partagez votre avis sur ce jeu (500 caractères max)..."></textarea>
                         <div class="comment_form_footer">
@@ -99,13 +119,11 @@
                         </div>
                     </form>
                     
-                    <!-- Message invitant à la connexion -->
                     <p id="comment-login-msg" style="color: var(--text-muted); font-size: 14px; margin: 15px 0; display:none;">
-                        <a href="login.html" id="comment-login-link" style="color: var(--accent-light); font-weight: bold;">Connectez-vous</a> pour laisser un commentaire et l'ajouter à votre bibliothèque.
+                        <a href="login.html" id="comment-login-link" style="color: var(--accent-light); font-weight: bold;">Connectez-vous</a> pour laisser un commentaire et noter ce jeu.
                     </p>
                 </div>
 
-                <!-- Liste des commentaires -->
                 <div id="comments-list" class="comments_list">
                     <p style="color: var(--text-muted); font-size: 14px;">Chargement des commentaires...</p>
                 </div>
@@ -126,7 +144,6 @@
     <script type="module">
         import { supabase } from './js/config.js';
 
-        // Protection contre les failles XSS
         function escapeHtml(str) {
             if (!str) return '';
             return String(str)
@@ -156,6 +173,7 @@
         let isAdmin = false;
         let currentSlug = '';
         let isInLibrary = false;
+        let userRating = 0;
 
         async function initGamePage() {
             const params = new URLSearchParams(window.location.search);
@@ -165,7 +183,7 @@
                 return; 
             }
 
-            // 1. Récupération des informations utilisateur (en parallèle pour la vitesse)
+            // 1. Session utilisateur
             const hasLocalToken = Object.keys(localStorage).some(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
             if (hasLocalToken) {
                 const { data: { user } } = await supabase.auth.getUser();
@@ -189,6 +207,9 @@
             document.getElementById('game-desc').innerText = game.description || "Aucune description fournie.";
             document.getElementById('game-hero').style.backgroundImage = `url('${optimizeCloudinary(game.cover_image, 1000)}')`;
             document.getElementById('play-link').href = `./games/${game.slug}/`;
+
+            // Afficher les statistiques de notes
+            renderRatingStats(game.rating_avg, game.rating_count);
 
             // 3. Téléchargements
             const dlContainer = document.getElementById('download-buttons');
@@ -223,7 +244,7 @@
             });
             if (dlCount > 0) document.getElementById('download-section').style.display = 'block';
 
-            // 4. Liens Stores
+            // 4. Stores
             const storeContainer = document.getElementById('store-buttons');
             let storeCount = 0;
             const stores = [
@@ -246,9 +267,102 @@
             });
             if (storeCount > 0) document.getElementById('store-section').style.display = 'block';
 
-            // 5. Initialiser la bibliothèque et les commentaires
+            // 5. Initialisation des composants
             setupLibraryButton();
             setupCommentsSection();
+            setupRatingWidget();
+        }
+
+        // ================= GESTION DES NOTES =================
+        function renderRatingStats(avg, count) {
+            const avgNum = Number(avg) || 0;
+            const totalCount = Number(count) || 0;
+            document.getElementById('rating-avg-num').innerText = totalCount > 0 ? avgNum.toFixed(1) : '-.-';
+            document.getElementById('rating-total-votes').innerText = totalCount;
+        }
+
+        function highlightStars(val) {
+            document.querySelectorAll('.star_btn').forEach(btn => {
+                const btnVal = parseInt(btn.getAttribute('data-val'), 10);
+                if (btnVal <= val) {
+                    btn.classList.add('filled');
+                } else {
+                    btn.classList.remove('filled');
+                }
+            });
+        }
+
+        async function setupRatingWidget() {
+            const starsContainer = document.getElementById('stars-container');
+            const statusLabel = document.getElementById('user-rating-status');
+
+            if (!currentUser) {
+                statusLabel.innerHTML = `<a href="login.html?redirect_to=${encodeURIComponent(window.location.href)}" style="color:var(--accent-light);">Connectez-vous pour noter</a>`;
+                starsContainer.querySelectorAll('.star_btn').forEach(btn => {
+                    btn.onclick = () => {
+                        window.location.href = `login.html?redirect_to=${encodeURIComponent(window.location.href)}`;
+                    };
+                });
+                return;
+            }
+
+            // Récupérer la note déjà attribuée par l'utilisateur
+            const { data: userVote } = await supabase
+                .from('game_ratings')
+                .select('rating')
+                .eq('user_id', currentUser.id)
+                .eq('game_slug', currentSlug)
+                .maybeSingle();
+
+            if (userVote) {
+                userRating = userVote.rating;
+                statusLabel.innerText = `Votre note : ${userRating} / 5 (modifiable)`;
+                highlightStars(userRating);
+            } else {
+                statusLabel.innerText = "Donnez une note (1 à 5 étoiles) :";
+            }
+
+            // Événements de survol et de clic
+            const starButtons = starsContainer.querySelectorAll('.star_btn');
+            starButtons.forEach(btn => {
+                const val = parseInt(btn.getAttribute('data-val'), 10);
+
+                btn.onmouseenter = () => highlightStars(val);
+                btn.onmouseleave = () => highlightStars(userRating);
+
+                btn.onclick = async () => {
+                    if (val < 1 || val > 5) return;
+                    userRating = val;
+                    highlightStars(userRating);
+                    statusLabel.innerText = "Enregistrement de votre vote...";
+
+                    const { error } = await supabase
+                        .from('game_ratings')
+                        .upsert({
+                            game_slug: currentSlug,
+                            user_id: currentUser.id,
+                            rating: val,
+                            updated_at: new Date().toISOString()
+                        }, { onConflict: 'user_id,game_slug' });
+
+                    if (error) {
+                        alert("Erreur lors de l'enregistrement de la note : " + error.message);
+                        statusLabel.innerText = "Erreur lors de la notation";
+                    } else {
+                        statusLabel.innerText = `Votre note : ${val} / 5 (enregistrée)`;
+                        // Rafraîchir les stats globales depuis la table games
+                        const { data: updatedGame } = await supabase
+                            .from('games')
+                            .select('rating_avg, rating_count')
+                            .eq('slug', currentSlug)
+                            .single();
+
+                        if (updatedGame) {
+                            renderRatingStats(updatedGame.rating_avg, updatedGame.rating_count);
+                        }
+                    }
+                };
+            });
         }
 
         // ================= GESTION DU BOUTON BIBLIOTHÈQUE =================
@@ -263,7 +377,6 @@
                 return;
             }
 
-            // Vérifier si le jeu est déjà dans la bibliothèque
             const { data } = await supabase
                 .from('user_library')
                 .select('id')
@@ -393,7 +506,6 @@
                     minute: '2-digit'
                 });
 
-                // Afficher le bouton supprimer UNIQUEMENT si c'est le commentaire de l'utilisateur ou s'il est admin
                 const canDelete = currentUser && (currentUser.id === c.user_id || isAdmin);
                 const deleteBtnHtml = canDelete 
                     ? `<button type="button" class="comment_delete_btn" data-id="${c.id}">🗑️ Supprimer</button>` 
@@ -413,7 +525,6 @@
                 `;
             }).join('');
 
-            // Attacher les écouteurs de suppression
             document.querySelectorAll('.comment_delete_btn').forEach(btn => {
                 btn.onclick = async () => {
                     const commentId = btn.getAttribute('data-id');
