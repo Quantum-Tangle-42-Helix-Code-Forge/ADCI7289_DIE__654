@@ -4,7 +4,7 @@
   font-family: 'Quicksand';
   font-style: normal;
   font-weight: 400;
-  src: url('../fonts/quicksand-v37-latin-regular.woff2') format('woff2');
+  src: url('fonts/quicksand-v37-latin-regular.woff2') format('woff2');
 }
 /* quicksand-700 - latin */
 @font-face {
@@ -12,7 +12,7 @@
   font-family: 'Quicksand';
   font-style: normal;
   font-weight: 700;
-  src: url('../fonts/quicksand-v37-latin-700.woff2') format('woff2'); 
+  src: url('fonts/quicksand-v37-latin-700.woff2') format('woff2'); 
 }
 
 :root {

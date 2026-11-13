@@ -4,10 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Gérez votre compte utilisateur, votre bibliothèque de jeux et vos préférences sur aks6.ink.">
+    <link rel="preload" href="fonts/quicksand-v37-latin-regular.woff2" as="font" type="font/woff2" crossorigin>
+    
     <link rel="stylesheet" href="main.css">
     <title>Mon Compte - aks6.ink</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4" defer></script>
     <meta name="google-adsense-account" content="ca-pub-4741766423982776">
+    
     <style>
         .admin-badge { 
             background: rgba(201, 42, 42, 0.2); 
@@ -18,6 +21,88 @@
             font-weight: bold; 
             margin-left: 10px; 
             border: 1px solid var(--accent-light); 
+        }
+
+        /* Réservation d'espace pour éliminer 100% du CLS */
+        .account_layout {
+            min-height: 480px;
+        }
+
+        .library_grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 16px;
+            margin-top: 15px;
+            min-height: 230px; /* Réserve l'espace pour que le footer ne saute pas */
+        }
+
+        .library_card {
+            background: var(--bg-input, #111);
+            border: 1px solid var(--border-color, #333);
+            border-radius: 6px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .library_card:hover {
+            transform: translateY(-3px);
+            border-color: #555;
+        }
+
+        .library_card .img_container {
+            aspect-ratio: 16 / 10;
+            width: 100%;
+            background: #000;
+            overflow: hidden;
+        }
+
+        .library_card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .library_card_content {
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            justify-content: space-between;
+        }
+
+        .library_card_title {
+            font-weight: bold;
+            font-size: 15px;
+            color: #fff;
+            text-decoration: none;
+            margin-bottom: 8px;
+            display: block;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .library_card_title:hover {
+            color: var(--accent-light);
+        }
+
+        .btn-remove-lib {
+            background: transparent;
+            border: 1px solid transparent;
+            color: #ff6b6b;
+            font-size: 12px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .btn-remove-lib:hover {
+            background: rgba(255, 107, 107, 0.15);
+            border-color: rgba(255, 107, 107, 0.3);
         }
     </style>
 </head>
@@ -36,40 +121,40 @@
         </div>
     </header>
 
-    <main class="inner_column">
-        <div id="loader" style="text-align: center; padding: 40px; color: var(--text-muted);">
-            Vérification du profil en cours...
+    <main class="inner_column account_layout">
+        <!-- L'en-tête est visible dès le départ : zéro saut visuel -->
+        <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 20px;">
+            <h1 style="margin: 0; font-size: 22px;">Tableau de bord : <span id="user-name">Mon Compte</span> <span id="admin-tag" style="display:none;" class="admin-badge">ADMIN</span></h1>
+            <button type="button" id="logout-btn" class="panel_button">Déconnexion</button>
         </div>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-top: 30px;">
+            <!-- Zone Bibliothèque (Pleine largeur) -->
+            <div class="base_widget" style="margin-top: 0; grid-column: 1 / -1;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid var(--accent-red); padding-bottom: 8px;">
+                    <h2 style="font-size: 18px; margin: 0;">🎮 Ma Bibliothèque <span id="library-count" style="font-size:15px; font-weight:normal; color:var(--text-muted);">(...)</span></h2>
+                    <a href="browse.html" style="color:var(--accent-light); font-size:13px; text-decoration:none;">+ Découvrir d'autres jeux</a>
+                </div>
 
-        <div id="profile-ui" style="display: none;">
-            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 20px;">
-                <h1 style="margin: 0; font-size: 22px;">Tableau de bord : <span id="user-name"></span> <span id="admin-tag" style="display:none;" class="admin-badge">ADMIN</span></h1>
-                <button type="button" id="logout-btn" class="panel_button">Déconnexion</button>
-            </div>
-            
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-top: 30px;">
-                <!-- Zone Bibliothèque -->
-                <div class="base_widget" style="margin-top: 0; grid-column: 1 / -1;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid var(--accent-red); padding-bottom: 8px;">
-                        <h2 style="font-size: 18px; margin: 0;">🎮 Ma Bibliothèque (<span id="library-count">0</span>)</h2>
-                        <a href="browse.html" style="color:var(--accent-light); font-size:13px; text-decoration:none;">+ Découvrir d'autres jeux</a>
-                    </div>
-                    <div id="library-container">
-                        <p style="color: var(--text-muted); font-size: 14px; margin-top: 15px;">Chargement de votre bibliothèque...</p>
+                <!-- Squelettes par défaut : réservent l'espace pour le CLS -->
+                <div id="library-container">
+                    <div class="library_grid">
+                        <div class="skeleton-card" style="height: 220px;"></div>
+                        <div class="skeleton-card" style="height: 220px;"></div>
                     </div>
                 </div>
+            </div>
+            
+            <!-- Zone Informations Compte -->
+            <div class="base_widget" style="margin-top: 0;">
+                <h2 style="margin-top: 0; font-size: 18px; color: var(--accent-light);">Informations</h2>
+                <p style="font-size: 14px; margin: 10px 0;"><strong>Email :</strong> <span id="user-email" style="color: var(--text-muted);">Chargement...</span></p>
                 
-                <!-- Zone Informations Compte -->
-                <div class="base_widget" style="margin-top: 0;">
-                    <h2 style="margin-top: 0; font-size: 18px; color: var(--accent-light);">Informations</h2>
-                    <p style="font-size: 14px; margin: 10px 0;"><strong>Email :</strong> <span id="user-email" style="color: var(--text-muted);"></span></p>
-                    
-                    <div id="admin-panel" style="display: none; border-top: 1px solid var(--border-color); margin-top: 20px; padding-top: 15px;">
-                        <p style="color: var(--accent-light); font-weight: bold; font-size: 14px; margin-top: 0;">🛡️ Espace Administration</p>
-                        <div style="display:flex; gap:10px; margin-top:10px;">
-                            <a href="upload.html" class="button" style="flex:1; font-size:13px;">AJOUTER UN JEU</a>
-                            <a href="admin-games.html" class="button" style="flex:1; font-size:13px; background:#444;">GÉRER LES JEUX</a>
-                        </div>
+                <div id="admin-panel" style="display: none; border-top: 1px solid var(--border-color); margin-top: 20px; padding-top: 15px;">
+                    <p style="color: var(--accent-light); font-weight: bold; font-size: 14px; margin-top: 0;">🛡️ Espace Administration</p>
+                    <div style="display:flex; gap:10px; margin-top:10px;">
+                        <a href="upload.html" class="button" style="flex:1; font-size:13px;">AJOUTER UN JEU</a>
+                        <a href="admin-games.html" class="button" style="flex:1; font-size:13px; background:#444;">GÉRER LES JEUX</a>
                     </div>
                 </div>
             </div>
@@ -114,6 +199,13 @@
 
         async function checkProfile() {
             try {
+                // Détection locale rapide
+                const hasLocalToken = Object.keys(localStorage).some(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+                if (!hasLocalToken) {
+                    window.location.href = "login.html";
+                    return;
+                }
+
                 const { data: { user }, error: authError } = await supabase.auth.getUser();
 
                 if (authError || !user) {
@@ -123,17 +215,15 @@
 
                 currentUser = user;
 
-                // 1. Extraction ultra-sécurisée de l'email et du pseudo (sans risque de crash)
+                // Affichage sécurisé sans risque d'erreur split
                 const userEmail = user.email || '';
                 const fallbackName = userEmail.includes('@') ? userEmail.split('@')[0] : 'Joueur';
                 const displayName = user.user_metadata?.display_name || fallbackName;
 
-                document.getElementById('loader').style.display = 'none';
-                document.getElementById('profile-ui').style.display = 'block';
                 document.getElementById('user-name').innerText = displayName;
                 document.getElementById('user-email').innerText = userEmail || 'Non communiqué';
 
-                // 2. Gestion du bouton Déconnexion
+                // Gestion Déconnexion
                 const logoutBtn = document.getElementById('logout-btn');
                 if (logoutBtn) {
                     logoutBtn.onclick = async () => {
@@ -142,7 +232,7 @@
                     };
                 }
 
-                // 3. Vérification Admin
+                // Vérification Admin
                 const { data: adminData } = await supabase
                     .from('admins')
                     .select('user_id')
@@ -154,12 +244,11 @@
                     document.getElementById('admin-panel').style.display = 'block';
                 }
 
-                // 4. Chargement de la bibliothèque
+                // Chargement de la bibliothèque
                 await loadUserLibrary();
 
             } catch (err) {
-                console.error("Erreur checkProfile :", err);
-                document.getElementById('loader').innerText = "Erreur lors du chargement de votre profil.";
+                console.error("Erreur profil :", err);
             }
         }
 
@@ -167,7 +256,6 @@
             const container = document.getElementById('library-container');
             const countSpan = document.getElementById('library-count');
 
-            // 1. Récupérer les jeux enregistrés par l'utilisateur
             const { data: libEntries, error: libErr } = await supabase
                 .from('user_library')
                 .select('game_slug, created_at')
@@ -180,7 +268,7 @@
             }
 
             if (!libEntries || libEntries.length === 0) {
-                countSpan.innerText = '0';
+                countSpan.innerText = '(0)';
                 container.innerHTML = `
                     <div style="padding: 25px 0; text-align: center;">
                         <p style="color: var(--text-muted); font-style: italic; margin-bottom: 12px;">Aucun jeu dans votre bibliothèque pour le moment.</p>
@@ -190,7 +278,6 @@
                 return;
             }
 
-            // 2. Récupérer les détails des jeux correspondants
             const slugs = libEntries.map(e => e.game_slug);
             const { data: games, error: gamesErr } = await supabase
                 .from('games')
@@ -198,48 +285,56 @@
                 .in('slug', slugs);
 
             if (gamesErr || !games || games.length === 0) {
-                countSpan.innerText = '0';
+                countSpan.innerText = '(0)';
                 container.innerHTML = "<p style='color:var(--text-muted); font-size:14px;'>Aucun jeu correspondant trouvé dans le catalogue.</p>";
                 return;
             }
 
-            // 3. Reclasser les jeux pour conserver l'ordre chronologique exact d'ajout
+            // Conserver l'ordre chronologique d'ajout
             const gameMap = new Map(games.map(g => [g.slug, g]));
             const orderedGames = slugs.map(slug => gameMap.get(slug)).filter(Boolean);
 
-            // Mise à jour exacte du compteur
-            countSpan.innerText = orderedGames.length;
+            countSpan.innerText = `(${orderedGames.length})`;
 
-            // 4. Affichage de la grille de jeux
+            // Rendu avec gestion chirurgicale du LCP et dimensions explicites contre le CLS
             container.innerHTML = `
                 <div class="library_grid">
-                    ${orderedGames.map(game => {
+                    ${orderedGames.map((game, index) => {
                         const safeTitle = escapeHtml(game.title);
                         const safeSlug = encodeURIComponent(game.slug);
                         const safeImg = escapeHtml(optimizeCloudinary(safeMediaUrl(game.cover_image), 320));
                         const rawSlug = escapeHtml(game.slug);
 
+                        // La 1ère carte est le LCP : priorité haute, pas de lazy loading
+                        const loadingAttr = (index === 0) ? 'fetchpriority="high"' : 'loading="lazy"';
+
                         return `
-                            <div class="library_card" id="lib-card-${safeSlug}">
-                                <a href="game.html?slug=${safeSlug}" style="text-decoration:none; color:inherit;">
-                                    <img src="${safeImg}" alt="${safeTitle}" loading="lazy">
-                                </a>
+                            <article class="library_card" id="lib-card-${safeSlug}">
+                                <div class="img_container">
+                                    <a href="game.html?slug=${safeSlug}" aria-label="Jouer à ${safeTitle}">
+                                        <img src="${safeImg}" 
+                                             alt="${safeTitle}" 
+                                             width="315" 
+                                             height="200" 
+                                             ${loadingAttr}>
+                                    </a>
+                                </div>
                                 <div class="library_card_content">
-                                    <a href="game.html?slug=${safeSlug}" style="font-weight:bold; font-size:14px; color:white; text-decoration:none; margin-bottom:8px; display:block;">
+                                    <a href="game.html?slug=${safeSlug}" class="library_card_title" title="${safeTitle}">
                                         ${safeTitle}
                                     </a>
                                     <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-                                        <a href="game.html?slug=${safeSlug}" class="button" style="padding:5px 12px; font-size:12px; min-height:auto;">Jouer</a>
-                                        <button type="button" class="btn-remove-lib" data-slug="${rawSlug}" style="background:none; border:none; color:#ff6b6b; font-size:12px; cursor:pointer; padding:4px;">Retirer</button>
+                                        <a href="game.html?slug=${safeSlug}" class="button" style="padding:6px 14px; font-size:12px; min-height:auto;">Jouer</a>
+                                        <button type="button" class="btn-remove-lib" data-slug="${rawSlug}" title="Retirer de ma bibliothèque">Retirer</button>
                                     </div>
                                 </div>
-                            </div>
+                            </article>
                         `;
                     }).join('')}
                 </div>
             `;
 
-            // 5. Écouteurs pour le bouton "Retirer"
+            // Écouteurs de suppression
             document.querySelectorAll('.btn-remove-lib').forEach(btn => {
                 btn.onclick = async () => {
                     const slugToRemove = btn.getAttribute('data-slug');
