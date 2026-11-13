@@ -4,9 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Jouez et téléchargez des jeux vidéo indépendants sur aks6.ink.">
-    <!--<link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">-->
     <link rel="stylesheet" href="main.css">
     <title>aks6.ink - Détails du Jeu</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4" defer></script>
@@ -58,9 +55,15 @@
     <main class="inner_column">
         <div id="game-info">
             <h1 id="game-title" style="margin: 0;">Chargement...</h1>
+            
             <div id="game-hero" class="game_hero">
                 <div class="hero_content">
                     <a id="play-link" href="#" class="button play_btn_large">LANCER DANS LE NAVIGATEUR</a>
+                    <div>
+                        <button type="button" id="library-btn" class="lib_btn" style="display:none;">
+                            <span id="lib-btn-icon">➕</span> <span id="lib-btn-text">Ajouter à ma bibliothèque</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -77,9 +80,35 @@
             </div>
 
             <!-- Description -->
-            <div class="base_widget">
+            <div class="base_widget" style="margin-bottom: 20px;">
                 <h2 style="font-size: 18px; margin-top: 0;">À propos de ce jeu</h2>
                 <p id="game-desc" style="line-height: 1.6; color: var(--text-muted); margin: 0;"></p>
+            </div>
+
+            <!-- Section Commentaires -->
+            <div class="base_widget" id="comments-section">
+                <h2 style="font-size: 18px; margin-top: 0;">💬 Avis des joueurs (<span id="comments-count">0</span>)</h2>
+                
+                <div id="comment-auth-box">
+                    <!-- Formulaire pour utilisateurs connectés -->
+                    <form id="comment-form" class="comment_form" style="display:none;">
+                        <textarea id="comment-input" class="comment_textarea" maxlength="500" required placeholder="Partagez votre avis sur ce jeu (500 caractères max)..."></textarea>
+                        <div class="comment_form_footer">
+                            <span id="comment-counter" class="comment_counter">0 / 500</span>
+                            <button type="submit" id="comment-submit-btn" class="button" style="padding: 8px 18px; min-height: auto; font-size: 14px;">Publier</button>
+                        </div>
+                    </form>
+                    
+                    <!-- Message invitant à la connexion -->
+                    <p id="comment-login-msg" style="color: var(--text-muted); font-size: 14px; margin: 15px 0; display:none;">
+                        <a href="login.html" id="comment-login-link" style="color: var(--accent-light); font-weight: bold;">Connectez-vous</a> pour laisser un commentaire et l'ajouter à votre bibliothèque.
+                    </p>
+                </div>
+
+                <!-- Liste des commentaires -->
+                <div id="comments-list" class="comments_list">
+                    <p style="color: var(--text-muted); font-size: 14px;">Chargement des commentaires...</p>
+                </div>
             </div>
         </div>
     </main>
@@ -95,118 +124,316 @@
     </footer>
 
     <script type="module">
-		import { supabase } from './js/config.js';
+        import { supabase } from './js/config.js';
 
-		// Optimisation Cloudinary automatique (WebP/AVIF auto + redimensionnement)
-		function optimizeCloudinary(url, width = 400) {
-			if (!url || typeof url !== 'string') return url;
-			if (!url.includes('cloudinary.com') || url.includes('/f_auto')) return url;
-			return url.replace('/upload/', `/upload/f_auto,q_auto,w_${width}/`);
-		}
+        // Protection contre les failles XSS
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
 
-		async function loadGame() {
-			const params = new URLSearchParams(window.location.search);
-			const slug = params.get('slug');
-			if (!slug) { 
-				window.location.href = "index.html"; 
-				return; 
-			}
+        function safeUrl(url) {
+            if (!url || typeof url !== 'string') return null;
+            const trimmed = url.trim();
+            if (trimmed.startsWith('https://') || trimmed.startsWith('http://') || trimmed.startsWith('./') || trimmed.startsWith('/')) {
+                return trimmed;
+            }
+            return null;
+        }
 
-			const { data: game, error } = await supabase.from('games').select('*').eq('slug', slug).single();
-			
-			if (error || !game) {
-				document.getElementById('game-title').innerText = "Jeu non trouvé";
-				document.getElementById('game-hero').style.display = 'none';
-				return;
-			}
+        function optimizeCloudinary(url, width = 400) {
+            if (!url || typeof url !== 'string') return '';
+            if (!url.includes('cloudinary.com') || url.includes('/f_auto')) return url;
+            return url.replace('/upload/', `/upload/f_auto,q_auto,w_${width}/`);
+        }
 
-			// Métadonnées & affichage principal
-			document.title = game.title + " - aks6.ink";
-			document.getElementById('game-title').innerText = game.title;
-			document.getElementById('game-desc').innerText = game.description || "Aucune description fournie.";
-			
-			// Image optimisée Cloudinary pour l'en-tête (une seule ligne propre)
-			document.getElementById('game-hero').style.backgroundImage = `url('${optimizeCloudinary(game.cover_image, 1000)}')`;
-			document.getElementById('play-link').href = `./games/${game.slug}/`;
+        let currentUser = null;
+        let isAdmin = false;
+        let currentSlug = '';
+        let isInLibrary = false;
 
-			// Validation sécurisée des liens externes et protocoles
-			function safeUrl(url) {
-				if (!url || typeof url !== 'string') return null;
-				const trimmed = url.trim();
-				// N'autorise strictement que http, https et les chemins relatifs locaux
-				if (trimmed.startsWith('https://') || trimmed.startsWith('http://') || trimmed.startsWith('./') || trimmed.startsWith('/')) {
-					return trimmed;
-				}
-				return null; // Bloque javascript:, data:, vbscript:, etc.
-			}
+        async function initGamePage() {
+            const params = new URLSearchParams(window.location.search);
+            currentSlug = params.get('slug');
+            if (!currentSlug) { 
+                window.location.href = "index.html"; 
+                return; 
+            }
 
-			// 1. Affichage dynamique des boutons de téléchargement
-			const dlContainer = document.getElementById('download-buttons');
-			let dlCount = 0;
+            // 1. Récupération des informations utilisateur (en parallèle pour la vitesse)
+            const hasLocalToken = Object.keys(localStorage).some(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+            if (hasLocalToken) {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                    currentUser = user;
+                    const { data: adminData } = await supabase.from('admins').select('user_id').eq('user_id', user.id).maybeSingle();
+                    isAdmin = (adminData !== null);
+                }
+            }
 
-			const downloads = [
-				{ enabled: game.has_windows, url: safeUrl(game.download_windows), os: 'Windows', icon: '🪟', note: '.exe / .zip' },
-				{ enabled: game.has_linux, url: safeUrl(game.download_linux), os: 'Linux', icon: '🐧', note: '.AppImage / tar' },
-				{ enabled: game.has_mac, url: safeUrl(game.download_mac), os: 'macOS', icon: '🍎', note: '.dmg / .zip' },
-				{ enabled: game.has_android, url: safeUrl(game.download_android), os: 'Android', icon: '🤖', note: '.apk' },
-			];
+            // 2. Chargement du jeu
+            const { data: game, error } = await supabase.from('games').select('*').eq('slug', currentSlug).single();
+            if (error || !game) {
+                document.getElementById('game-title').innerText = "Jeu non trouvé";
+                document.getElementById('game-hero').style.display = 'none';
+                return;
+            }
 
-			downloads.forEach(dl => {
-				if (dl.enabled && dl.url) {
-					dlCount++;
-					const card = document.createElement('a');
-					card.className = 'download_card';
-					card.href = dl.url; // Assignation native sécurisée via safeUrl
-					card.target = '_blank';
-					card.rel = 'noopener noreferrer';
-					card.innerHTML = `
-						<div class="download_info">
-							<span class="os_icon">${dl.icon}</span>
-							<div>
-								<strong style="display:block;">${dl.os}</strong>
-								<span style="font-size:12px; color:var(--text-muted);">${dl.note}</span>
-							</div>
-						</div>
-						<span class="button" style="padding:6px 14px; min-height:auto; font-size:13px;">Télécharger</span>
-					`;
-					dlContainer.appendChild(card);
-				}
-			});
+            document.title = `${game.title} - aks6.ink`;
+            document.getElementById('game-title').innerText = game.title;
+            document.getElementById('game-desc').innerText = game.description || "Aucune description fournie.";
+            document.getElementById('game-hero').style.backgroundImage = `url('${optimizeCloudinary(game.cover_image, 1000)}')`;
+            document.getElementById('play-link').href = `./games/${game.slug}/`;
 
-			if (dlCount > 0) {
-				document.getElementById('download-section').style.display = 'block';
-			}
+            // 3. Téléchargements
+            const dlContainer = document.getElementById('download-buttons');
+            let dlCount = 0;
+            const downloads = [
+                { enabled: game.has_windows, url: safeUrl(game.download_windows), os: 'Windows', icon: '🪟', note: '.exe / .zip' },
+                { enabled: game.has_linux, url: safeUrl(game.download_linux), os: 'Linux', icon: '🐧', note: '.AppImage / tar' },
+                { enabled: game.has_mac, url: safeUrl(game.download_mac), os: 'macOS', icon: '🍎', note: '.dmg / .zip' },
+                { enabled: game.has_android, url: safeUrl(game.download_android), os: 'Android', icon: '🤖', note: '.apk' },
+            ];
 
-			// 2. Affichage dynamique des plateformes / Stores
-			const storeContainer = document.getElementById('store-buttons');
-			let storeCount = 0;
+            downloads.forEach(dl => {
+                if (dl.enabled && dl.url) {
+                    dlCount++;
+                    const card = document.createElement('a');
+                    card.className = 'download_card';
+                    card.href = dl.url;
+                    card.target = '_blank';
+                    card.rel = 'noopener noreferrer';
+                    card.innerHTML = `
+                        <div class="download_info">
+                            <span class="os_icon">${dl.icon}</span>
+                            <div>
+                                <strong style="display:block;">${dl.os}</strong>
+                                <span style="font-size:12px; color:var(--text-muted);">${dl.note}</span>
+                            </div>
+                        </div>
+                        <span class="button" style="padding:6px 14px; min-height:auto; font-size:13px;">Télécharger</span>
+                    `;
+                    dlContainer.appendChild(card);
+                }
+            });
+            if (dlCount > 0) document.getElementById('download-section').style.display = 'block';
 
-			const stores = [
-				{ url: safeUrl(game.link_steam), name: 'Steam', icon: '🎮' },
-				{ url: safeUrl(game.link_playstore), name: 'Google Play', icon: '📱' },
-				{ url: safeUrl(game.link_appstore), name: 'App Store', icon: '🍏' },
-				{ url: safeUrl(game.link_itchio), name: 'Itch.io', icon: '🕹️' }
-			];
+            // 4. Liens Stores
+            const storeContainer = document.getElementById('store-buttons');
+            let storeCount = 0;
+            const stores = [
+                { url: safeUrl(game.link_steam), name: 'Steam', icon: '🎮' },
+                { url: safeUrl(game.link_playstore), name: 'Google Play', icon: '📱' },
+                { url: safeUrl(game.link_appstore), name: 'App Store', icon: '🍏' },
+                { url: safeUrl(game.link_itchio), name: 'Itch.io', icon: '🕹️' }
+            ];
+            stores.forEach(store => {
+                if (store.url) {
+                    storeCount++;
+                    const btn = document.createElement('a');
+                    btn.className = 'store_button';
+                    btn.href = store.url;
+                    btn.target = '_blank';
+                    btn.rel = 'noopener noreferrer';
+                    btn.textContent = `${store.icon} Voir sur ${store.name}`;
+                    storeContainer.appendChild(btn);
+                }
+            });
+            if (storeCount > 0) document.getElementById('store-section').style.display = 'block';
 
-			stores.forEach(store => {
-				if (store.url) {
-					storeCount++;
-					const btn = document.createElement('a');
-					btn.className = 'store_button';
-					btn.href = store.url;
-					btn.target = '_blank';
-					btn.rel = 'noopener noreferrer';
-					btn.textContent = `${store.icon} Voir sur ${store.name}`; // textContent est 100% insensible au XSS
-					storeContainer.appendChild(btn);
-				}
-			});
+            // 5. Initialiser la bibliothèque et les commentaires
+            setupLibraryButton();
+            setupCommentsSection();
+        }
 
-			if (storeCount > 0) {
-				document.getElementById('store-section').style.display = 'block';
-			}
-		}
+        // ================= GESTION DU BOUTON BIBLIOTHÈQUE =================
+        async function setupLibraryButton() {
+            const libBtn = document.getElementById('library-btn');
+            libBtn.style.display = 'inline-flex';
 
-		window.addEventListener('DOMContentLoaded', loadGame);
-	</script>
+            if (!currentUser) {
+                libBtn.onclick = () => {
+                    window.location.href = `login.html?redirect_to=${encodeURIComponent(window.location.href)}`;
+                };
+                return;
+            }
+
+            // Vérifier si le jeu est déjà dans la bibliothèque
+            const { data } = await supabase
+                .from('user_library')
+                .select('id')
+                .eq('user_id', currentUser.id)
+                .eq('game_slug', currentSlug)
+                .maybeSingle();
+
+            isInLibrary = (data !== null);
+            updateLibraryBtnUI();
+
+            libBtn.onclick = async () => {
+                libBtn.disabled = true;
+                if (isInLibrary) {
+                    const { error } = await supabase
+                        .from('user_library')
+                        .delete()
+                        .eq('user_id', currentUser.id)
+                        .eq('game_slug', currentSlug);
+                    if (!error) isInLibrary = false;
+                } else {
+                    const { error } = await supabase
+                        .from('user_library')
+                        .insert([{ user_id: currentUser.id, game_slug: currentSlug }]);
+                    if (!error) isInLibrary = true;
+                }
+                updateLibraryBtnUI();
+                libBtn.disabled = false;
+            };
+        }
+
+        function updateLibraryBtnUI() {
+            const libBtn = document.getElementById('library-btn');
+            const icon = document.getElementById('lib-btn-icon');
+            const text = document.getElementById('lib-btn-text');
+
+            if (isInLibrary) {
+                libBtn.classList.add('in_library');
+                icon.innerText = '✅';
+                text.innerText = 'Dans ma bibliothèque (Cliquer pour retirer)';
+            } else {
+                libBtn.classList.remove('in_library');
+                icon.innerText = '➕';
+                text.innerText = 'Ajouter à ma bibliothèque';
+            }
+        }
+
+        // ================= GESTION DES COMMENTAIRES =================
+        function setupCommentsSection() {
+            const commentForm = document.getElementById('comment-form');
+            const loginMsg = document.getElementById('comment-login-msg');
+            const textarea = document.getElementById('comment-input');
+            const counter = document.getElementById('comment-counter');
+
+            if (currentUser) {
+                commentForm.style.display = 'flex';
+                loginMsg.style.display = 'none';
+
+                textarea.addEventListener('input', () => {
+                    counter.innerText = `${textarea.value.length} / 500`;
+                });
+
+                commentForm.onsubmit = async (e) => {
+                    e.preventDefault();
+                    const content = textarea.value.trim();
+                    if (!content) return;
+
+                    const submitBtn = document.getElementById('comment-submit-btn');
+                    submitBtn.disabled = true;
+
+                    const authorName = currentUser.user_metadata?.display_name || currentUser.email.split('@')[0];
+
+                    const { error } = await supabase.from('game_comments').insert([{
+                        game_slug: currentSlug,
+                        user_id: currentUser.id,
+                        author_name: authorName,
+                        content: content
+                    }]);
+
+                    if (error) {
+                        alert("Erreur lors de la publication : " + error.message);
+                    } else {
+                        textarea.value = '';
+                        counter.innerText = "0 / 500";
+                        loadComments();
+                    }
+                    submitBtn.disabled = false;
+                };
+            } else {
+                commentForm.style.display = 'none';
+                loginMsg.style.display = 'block';
+                document.getElementById('comment-login-link').href = `login.html?redirect_to=${encodeURIComponent(window.location.href)}`;
+            }
+
+            loadComments();
+        }
+
+        async function loadComments() {
+            const listContainer = document.getElementById('comments-list');
+            const countSpan = document.getElementById('comments-count');
+
+            const { data: comments, error } = await supabase
+                .from('game_comments')
+                .select('*')
+                .eq('game_slug', currentSlug)
+                .order('created_at', { ascending: false });
+
+            if (error || !comments) {
+                listContainer.innerHTML = "<p style='color:var(--text-muted); font-size:14px;'>Impossible de charger les commentaires.</p>";
+                return;
+            }
+
+            countSpan.innerText = comments.length;
+
+            if (comments.length === 0) {
+                listContainer.innerHTML = "<p style='color:var(--text-muted); font-size:14px; font-style:italic;'>Aucun commentaire pour le moment. Soyez le premier à donner votre avis !</p>";
+                return;
+            }
+
+            listContainer.innerHTML = comments.map(c => {
+                const safeAuthor = escapeHtml(c.author_name);
+                const safeContent = escapeHtml(c.content);
+                const dateStr = new Date(c.created_at).toLocaleDateString('fr-FR', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                // Afficher le bouton supprimer UNIQUEMENT si c'est le commentaire de l'utilisateur ou s'il est admin
+                const canDelete = currentUser && (currentUser.id === c.user_id || isAdmin);
+                const deleteBtnHtml = canDelete 
+                    ? `<button type="button" class="comment_delete_btn" data-id="${c.id}">🗑️ Supprimer</button>` 
+                    : '';
+
+                return `
+                    <div class="comment_item" id="comment-${c.id}">
+                        <div class="comment_header">
+                            <div>
+                                <span class="comment_author">${safeAuthor}</span>
+                                <span class="comment_date">${dateStr}</span>
+                            </div>
+                            ${deleteBtnHtml}
+                        </div>
+                        <div class="comment_body">${safeContent}</div>
+                    </div>
+                `;
+            }).join('');
+
+            // Attacher les écouteurs de suppression
+            document.querySelectorAll('.comment_delete_btn').forEach(btn => {
+                btn.onclick = async () => {
+                    const commentId = btn.getAttribute('data-id');
+                    if (!confirm("Voulez-vous vraiment supprimer ce commentaire ?")) return;
+
+                    const { error: delErr } = await supabase
+                        .from('game_comments')
+                        .delete()
+                        .eq('id', commentId);
+
+                    if (delErr) {
+                        alert("Erreur de suppression : " + delErr.message);
+                    } else {
+                        loadComments();
+                    }
+                };
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', initGamePage);
+    </script>
 </body>
 </html>

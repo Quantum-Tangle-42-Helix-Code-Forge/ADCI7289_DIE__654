@@ -48,18 +48,28 @@
             </div>
             
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-top: 30px;">
-                <div class="base_widget" style="margin-top: 0;">
-                    <h2 style="font-size: 18px; margin-top: 0; border-bottom: 2px solid var(--accent-red); padding-bottom: 8px;">Ma Bibliothèque</h2>
-                    <p style="color: var(--text-muted); font-style: italic; margin-top: 15px;">Aucun jeu dans votre bibliothèque pour le moment.</p>
+                <!-- Zone Bibliothèque -->
+                <div class="base_widget" style="margin-top: 0; grid-column: 1 / -1;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid var(--accent-red); padding-bottom: 8px;">
+                        <h2 style="font-size: 18px; margin: 0;">🎮 Ma Bibliothèque (<span id="library-count">0</span>)</h2>
+                        <a href="browse.html" style="color:var(--accent-light); font-size:13px; text-decoration:none;">+ Découvrir d'autres jeux</a>
+                    </div>
+                    <div id="library-container">
+                        <p style="color: var(--text-muted); font-size: 14px; margin-top: 15px;">Chargement de votre bibliothèque...</p>
+                    </div>
                 </div>
                 
+                <!-- Zone Informations Compte -->
                 <div class="base_widget" style="margin-top: 0;">
                     <h2 style="margin-top: 0; font-size: 18px; color: var(--accent-light);">Informations</h2>
                     <p style="font-size: 14px; margin: 10px 0;"><strong>Email :</strong> <span id="user-email" style="color: var(--text-muted);"></span></p>
                     
                     <div id="admin-panel" style="display: none; border-top: 1px solid var(--border-color); margin-top: 20px; padding-top: 15px;">
                         <p style="color: var(--accent-light); font-weight: bold; font-size: 14px; margin-top: 0;">🛡️ Espace Administration</p>
-                        <a href="upload.html" class="button" style="width: 100%;">AJOUTER UN JEU</a>
+                        <div style="display:flex; gap:10px; margin-top:10px;">
+                            <a href="upload.html" class="button" style="flex:1; font-size:13px;">AJOUTER UN JEU</a>
+                            <a href="admin-games.html" class="button" style="flex:1; font-size:13px; background:#444;">GÉRER LES JEUX</a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -67,9 +77,7 @@
     </main>
 
     <footer class="footer">
-        <div class="footer_copy">
-            © 2026 <strong>Sekhmetis</strong> - Tous droits réservés.
-        </div>
+        <div class="footer_copy">© 2026 <strong>Sekhmetis</strong> - Tous droits réservés.</div>
         <div class="footer_links">
             <a href="legal_pages.html#confidentialite">Politique de Confidentialité</a>
             <a href="legal_pages.html#apropos">À Propos</a>
@@ -79,40 +87,181 @@
     </footer>
 
     <script type="module">
-		import { supabase } from './js/config.js';
+        import { supabase } from './js/config.js';
 
-		async function checkProfile() {
-			const { data: { user }, error: authError } = await supabase.auth.getUser();
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
 
-			if (authError || !user) {
-				window.location.href = "login.html";
-				return;
-			}
+        function safeMediaUrl(url) {
+            if (!url || typeof url !== 'string') return '';
+            return (url.startsWith('https://') || url.startsWith('http://') || url.startsWith('./')) ? url : '';
+        }
 
-			document.getElementById('loader').style.display = 'none';
-			document.getElementById('profile-ui').style.display = 'block';
-			document.getElementById('user-name').innerText = user.user_metadata?.display_name || user.email.split('@')[0];
-			document.getElementById('user-email').innerText = user.email;
+        function optimizeCloudinary(url, width = 320) {
+            if (!url || typeof url !== 'string') return '';
+            if (!url.includes('cloudinary.com') || url.includes('/f_auto')) return url;
+            return url.replace('/upload/', `/upload/f_auto,q_auto,w_${width}/`);
+        }
 
-			// Vérification de la table admins
-			const { data: adminData, error: adminError } = await supabase
-				.from('admins')
-				.select('user_id')
-				.eq('user_id', user.id)
-				.maybeSingle();
+        let currentUser = null;
 
-			if (adminData && !adminError) {
-				document.getElementById('admin-tag').style.display = 'inline-block';
-				document.getElementById('admin-panel').style.display = 'block';
-			}
-		}
+        async function checkProfile() {
+            try {
+                const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-		document.getElementById('logout-btn').onclick = async () => {
-			await supabase.auth.signOut({ scope: 'local' });
-			window.location.href = "index.html";
-		};
+                if (authError || !user) {
+                    window.location.href = "login.html";
+                    return;
+                }
 
-		window.addEventListener('DOMContentLoaded', checkProfile);
-	</script>
+                currentUser = user;
+
+                // 1. Extraction ultra-sécurisée de l'email et du pseudo (sans risque de crash)
+                const userEmail = user.email || '';
+                const fallbackName = userEmail.includes('@') ? userEmail.split('@')[0] : 'Joueur';
+                const displayName = user.user_metadata?.display_name || fallbackName;
+
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('profile-ui').style.display = 'block';
+                document.getElementById('user-name').innerText = displayName;
+                document.getElementById('user-email').innerText = userEmail || 'Non communiqué';
+
+                // 2. Gestion du bouton Déconnexion
+                const logoutBtn = document.getElementById('logout-btn');
+                if (logoutBtn) {
+                    logoutBtn.onclick = async () => {
+                        await supabase.auth.signOut({ scope: 'local' });
+                        window.location.href = "index.html";
+                    };
+                }
+
+                // 3. Vérification Admin
+                const { data: adminData } = await supabase
+                    .from('admins')
+                    .select('user_id')
+                    .eq('user_id', user.id)
+                    .maybeSingle();
+
+                if (adminData) {
+                    document.getElementById('admin-tag').style.display = 'inline-block';
+                    document.getElementById('admin-panel').style.display = 'block';
+                }
+
+                // 4. Chargement de la bibliothèque
+                await loadUserLibrary();
+
+            } catch (err) {
+                console.error("Erreur checkProfile :", err);
+                document.getElementById('loader').innerText = "Erreur lors du chargement de votre profil.";
+            }
+        }
+
+        async function loadUserLibrary() {
+            const container = document.getElementById('library-container');
+            const countSpan = document.getElementById('library-count');
+
+            // 1. Récupérer les jeux enregistrés par l'utilisateur
+            const { data: libEntries, error: libErr } = await supabase
+                .from('user_library')
+                .select('game_slug, created_at')
+                .eq('user_id', currentUser.id)
+                .order('created_at', { ascending: false });
+
+            if (libErr) {
+                container.innerHTML = `<p style='color:var(--text-muted); font-size:14px;'>Erreur : ${escapeHtml(libErr.message)}</p>`;
+                return;
+            }
+
+            if (!libEntries || libEntries.length === 0) {
+                countSpan.innerText = '0';
+                container.innerHTML = `
+                    <div style="padding: 25px 0; text-align: center;">
+                        <p style="color: var(--text-muted); font-style: italic; margin-bottom: 12px;">Aucun jeu dans votre bibliothèque pour le moment.</p>
+                        <a href="browse.html" class="button" style="font-size:13px; padding:8px 16px;">Parcourir les jeux disponibles</a>
+                    </div>
+                `;
+                return;
+            }
+
+            // 2. Récupérer les détails des jeux correspondants
+            const slugs = libEntries.map(e => e.game_slug);
+            const { data: games, error: gamesErr } = await supabase
+                .from('games')
+                .select('title, slug, cover_image, genre')
+                .in('slug', slugs);
+
+            if (gamesErr || !games || games.length === 0) {
+                countSpan.innerText = '0';
+                container.innerHTML = "<p style='color:var(--text-muted); font-size:14px;'>Aucun jeu correspondant trouvé dans le catalogue.</p>";
+                return;
+            }
+
+            // 3. Reclasser les jeux pour conserver l'ordre chronologique exact d'ajout
+            const gameMap = new Map(games.map(g => [g.slug, g]));
+            const orderedGames = slugs.map(slug => gameMap.get(slug)).filter(Boolean);
+
+            // Mise à jour exacte du compteur
+            countSpan.innerText = orderedGames.length;
+
+            // 4. Affichage de la grille de jeux
+            container.innerHTML = `
+                <div class="library_grid">
+                    ${orderedGames.map(game => {
+                        const safeTitle = escapeHtml(game.title);
+                        const safeSlug = encodeURIComponent(game.slug);
+                        const safeImg = escapeHtml(optimizeCloudinary(safeMediaUrl(game.cover_image), 320));
+                        const rawSlug = escapeHtml(game.slug);
+
+                        return `
+                            <div class="library_card" id="lib-card-${safeSlug}">
+                                <a href="game.html?slug=${safeSlug}" style="text-decoration:none; color:inherit;">
+                                    <img src="${safeImg}" alt="${safeTitle}" loading="lazy">
+                                </a>
+                                <div class="library_card_content">
+                                    <a href="game.html?slug=${safeSlug}" style="font-weight:bold; font-size:14px; color:white; text-decoration:none; margin-bottom:8px; display:block;">
+                                        ${safeTitle}
+                                    </a>
+                                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                                        <a href="game.html?slug=${safeSlug}" class="button" style="padding:5px 12px; font-size:12px; min-height:auto;">Jouer</a>
+                                        <button type="button" class="btn-remove-lib" data-slug="${rawSlug}" style="background:none; border:none; color:#ff6b6b; font-size:12px; cursor:pointer; padding:4px;">Retirer</button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+
+            // 5. Écouteurs pour le bouton "Retirer"
+            document.querySelectorAll('.btn-remove-lib').forEach(btn => {
+                btn.onclick = async () => {
+                    const slugToRemove = btn.getAttribute('data-slug');
+                    btn.disabled = true;
+
+                    const { error } = await supabase
+                        .from('user_library')
+                        .delete()
+                        .eq('user_id', currentUser.id)
+                        .eq('game_slug', slugToRemove);
+
+                    if (!error) {
+                        await loadUserLibrary();
+                    } else {
+                        alert("Erreur lors du retrait : " + error.message);
+                        btn.disabled = false;
+                    }
+                };
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', checkProfile);
+    </script>
 </body>
 </html>
