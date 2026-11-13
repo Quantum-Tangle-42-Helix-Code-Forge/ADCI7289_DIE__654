@@ -504,3 +504,132 @@ input:focus, textarea:focus, select:focus {
     height: 18px;
     cursor: pointer;
 }
+
+/* ================= BOUTON BIBLIOTHÈQUE ================= */
+.lib_btn {
+    margin-top: 12px;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    font-size: 14px;
+    padding: 8px 18px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.lib_btn:hover {
+    border-color: var(--accent-light);
+    color: #fff;
+}
+.lib_btn.in_library {
+    background: rgba(81, 207, 102, 0.15);
+    border-color: #51cf66;
+    color: #51cf66;
+}
+
+/* ================= SECTION COMMENTAIRES ================= */
+.comment_form {
+    margin-top: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.comment_textarea {
+    width: 100%;
+    min-height: 90px;
+    resize: vertical;
+}
+.comment_form_footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.comment_counter {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+.comments_list {
+    margin-top: 25px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.comment_item {
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 14px 18px;
+}
+.comment_header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+.comment_author {
+    font-weight: bold;
+    color: var(--accent-light);
+    font-size: 14px;
+}
+.comment_date {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-left: 10px;
+}
+.comment_body {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.comment_delete_btn {
+    background: transparent;
+    border: none;
+    color: #ff6b6b;
+    cursor: pointer;
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+.comment_delete_btn:hover {
+    background: rgba(255, 107, 107, 0.15);
+}
+
+/* ================= GRILLE DE LA BIBLIOTHÈQUE ================= */
+.library_grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    margin-top: 15px;
+}
+.library_card {
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: border-color 0.2s, transform 0.2s;
+}
+.library_card:hover {
+    border-color: var(--accent-light);
+    transform: translateY(-3px);
+}
+.library_card img {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+    display: block;
+}
+.library_card_content {
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    justify-content: space-between;
+}
